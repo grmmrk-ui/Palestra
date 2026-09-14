@@ -175,6 +175,20 @@ export async function patchSettings(patch) {
   await db.put('settings', S.settings);
 }
 
+/* ---- media (foto/video per esercizio) ---- */
+export const getMedia = (plannedId) => db.getAllByIndex('media', 'plannedId', plannedId);
+export async function addMedia(plannedId, file) {
+  const m = {
+    id: uid(), plannedId,
+    type: (file.type || '').startsWith('video') ? 'video' : 'image',
+    mime: file.type || '', name: file.name || '', size: file.size || 0,
+    blob: file, createdAt: Date.now(),
+  };
+  await db.put('media', m);
+  return m;
+}
+export const deleteMedia = (id) => db.del('media', id);
+
 /* ---- live workout (telecomando notifica) ---- */
 export const getLive = () => db.get('settings', 'live');
 export async function setLive(live) { live.id = 'live'; await db.put('settings', live); return live; }

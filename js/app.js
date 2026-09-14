@@ -150,6 +150,41 @@ function render() {
   window.scrollTo(0, 0);
   manageWorkoutChrome();
   syncLive();
+  hydrateMedia();
+}
+
+/* ---------- media (foto/video esercizio) ---------- */
+let mediaURLs = [];
+async function hydrateMedia() {
+  const host = document.getElementById('media-list');
+  mediaURLs.forEach((u) => { try { URL.revokeObjectURL(u); } catch (e) {} });
+  mediaURLs = [];
+  if (!host) return;
+  const plannedId = host.dataset.planned;
+  const readonly = host.dataset.readonly === '1';
+  const card = document.getElementById('media-card');
+  if (!plannedId) { if (card) card.hidden = true; return; }
+  let items = [];
+  try { items = await st.getMedia(plannedId); } catch (e) {}
+  items.sort((a, b) => a.createdAt - b.createdAt);
+  if (readonly && card) card.hidden = items.length === 0;
+  host.innerHTML = '';
+  if (!items.length && !readonly) { host.innerHTML = '<div class="media-empty">Nessuna foto o video ancora.</div>'; return; }
+  for (const m of items) {
+    const url = URL.createObjectURL(m.blob); mediaURLs.push(url);
+    const cell = document.createElement('div'); cell.className = 'media-cell';
+    let el;
+    if (m.type === 'video') { el = document.createElement('video'); el.src = url; el.controls = true; el.playsInline = true; }
+    else { el = document.createElement('img'); el.src = url; el.loading = 'lazy'; el.alt = m.name || 'foto'; }
+    cell.appendChild(el);
+    if (!readonly) {
+      const del = document.createElement('button');
+      del.className = 'media-del'; del.textContent = '✕';
+      del.dataset.action = 'del-media'; del.dataset.id = m.id;
+      cell.appendChild(del);
+    }
+    host.appendChild(cell);
+  }
 }
 
 /* ---------- workout guided mode (HUD + lockscreen) ---------- */
@@ -386,6 +421,7 @@ document.addEventListener('click', async (ev) => {
     case 'ex-up': await st.movePlanned(id, -1); render(); break;
     case 'ex-down': await st.movePlanned(id, +1); render(); break;
     case 'del-ex': if (confirm('Eliminare l\'esercizio?')) { await st.deletePlanned(id); render(); } break;
+    case 'del-media': if (confirm('Eliminare questo media?')) { await st.deleteMedia(id); await hydrateMedia(); } break;
     case 'del-ex-back': {
       if (confirm('Eliminare l\'esercizio?')) { await st.deletePlanned(id); location.hash = `#/edit-day/${t.dataset.day}`; }
       break;
@@ -441,6 +477,18 @@ document.addEventListener('change', async (ev) => {
     case 'cardio-min': await ensureStarted(id); await st.patchSet(id, { durationSec: (num(v) || 0) * 60 }); break;
     case 'cardio-dist': await st.patchSet(id, { distance: num(v) }); break;
     case 'ex-note': await st.patchLogEx(id, { note: v }); break;
+    case 'add-media': {
+      const plannedId = t.dataset.planned;
+      const files = Array.from(t.files || []);
+      for (const f of files) {
+        if (f.size > 60 * 1024 * 1024) { toast(`${f.name}: troppo grande (max ~60MB)`); continue; }
+        await st.addMedia(plannedId, f);
+      }
+      t.value = '';
+      await hydrateMedia();
+      if (files.length) toast('Aggiunto ✓');
+      break;
+    }
     case 'weighin-day':
       await st.patchSettings({ weighIn: { ...S.settings.weighIn, weekday: Number(v) } });
       render();

@@ -2,7 +2,7 @@
 // Stores mirror the data model; every doc has a string `id` primary key.
 
 const DB_NAME = 'palestra';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export const STORES = {
   settings:      { key: 'id' },
@@ -13,6 +13,7 @@ export const STORES = {
   logExercises:  { key: 'id', indexes: { sessionId: 'sessionId' } },
   logSets:       { key: 'id', indexes: { logExerciseId: 'logExerciseId' } },
   bodyweight:    { key: 'id', indexes: { date: 'date' } },
+  media:         { key: 'id', indexes: { plannedId: 'plannedId' } }, // foto/video per esercizio (blob)
 };
 
 let _db = null;
@@ -47,6 +48,8 @@ const wrap = (req) => new Promise((res, rej) => {
 });
 
 export const getAll = (store) => open().then(() => wrap(tx(store, 'readonly').getAll()));
+export const getAllByIndex = (store, index, key) =>
+  open().then(() => wrap(tx(store, 'readonly').index(index).getAll(key)));
 export const get = (store, id) => open().then(() => wrap(tx(store, 'readonly').get(id)));
 export const put = (store, val) => open().then(() => wrap(tx(store, 'readwrite').put(val)).then(() => val));
 export const del = (store, id) => open().then(() => wrap(tx(store, 'readwrite').delete(id)));

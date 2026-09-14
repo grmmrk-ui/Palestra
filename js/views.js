@@ -236,6 +236,11 @@ export function renderExercise(id) {
   </div>
   <p class="muted" style="margin:10px 2px 0;font-size:12px">Usa il pulsantone in basso per farti guidare, oppure correggi i valori qui sopra a mano.</p>
 
+  <div class="card pad" id="media-card" hidden style="margin-top:14px">
+    <div class="sect" style="margin:0 0 10px">Riferimento</div>
+    <div id="media-list" class="media-grid" data-planned="${e.plannedId || ''}" data-readonly="1"></div>
+  </div>
+
   <div class="card pad" style="margin-top:14px">${noteField(e)}</div>`;
 }
 
@@ -551,7 +556,18 @@ export function renderEditExercise(dayId, pid) {
   </form>
 
   <button class="btn" data-action="save-ex" data-day="${dayId}" data-id="${isNew ? 'new' : p.id}" style="margin-top:6px">${isNew ? 'Aggiungi' : 'Salva'}</button>
-  ${isNew ? '' : `<button class="btn ghost" data-action="del-ex-back" data-id="${p.id}" data-day="${dayId}" style="margin-top:10px">Elimina esercizio</button>`}
+
+  <div class="sect">Foto / video</div>
+  ${isNew ? `<p class="muted" style="font-size:13px;padding:2px">Salva prima l'esercizio, poi potrai aggiungere foto o un breve video di riferimento.</p>` : `
+  <div class="card pad">
+    <div id="media-list" class="media-grid" data-planned="${p.id}"></div>
+    <label class="btn ghost filebtn" style="margin-top:10px">📷 Aggiungi foto / video
+      <input type="file" accept="image/*,video/*" data-action="add-media" data-planned="${p.id}" hidden multiple>
+    </label>
+    <p class="muted" style="font-size:12px;margin:10px 0 0">Restano sul dispositivo. Per i video usa clip brevi.</p>
+  </div>`}
+
+  ${isNew ? '' : `<button class="btn ghost" data-action="del-ex-back" data-id="${p.id}" data-day="${dayId}" style="margin-top:14px">Elimina esercizio</button>`}
   `;
 }
 
