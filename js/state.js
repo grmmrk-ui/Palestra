@@ -115,6 +115,18 @@ export async function startSession(iso) {
   return s;
 }
 
+export async function deleteSession(id) {
+  const exs = S.logExercises.filter((e) => e.sessionId === id);
+  const exIds = new Set(exs.map((e) => e.id));
+  const sets = S.logSets.filter((s) => exIds.has(s.logExerciseId));
+  for (const s of sets) await db.del('logSets', s.id);
+  for (const e of exs) await db.del('logExercises', e.id);
+  await db.del('sessions', id);
+  S.logSets = S.logSets.filter((s) => !exIds.has(s.logExerciseId));
+  S.logExercises = S.logExercises.filter((e) => e.sessionId !== id);
+  S.sessions = S.sessions.filter((x) => x.id !== id);
+}
+
 export async function endSession(id) {
   const s = S.sessions.find((x) => x.id === id);
   if (!s) return;

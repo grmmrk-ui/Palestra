@@ -302,6 +302,16 @@ document.addEventListener('click', async (ev) => {
       render();
       break;
     }
+    case 'restart-session': {
+      if (!confirm('Riavviare l\'allenamento?\n\nTutti i dati registrati in questa sessione (serie completate, pesi, note) andranno persi. La scheda resta invariata.')) break;
+      const s = st.sessionByDate(t.dataset.date);
+      if (s) await st.deleteSession(s.id);
+      restState = null;
+      await st.setLive({ active: false }); tellSW();
+      toast('Allenamento riavviato');
+      render();
+      break;
+    }
     case 'toggle-set': {
       const set = S.logSets.find((x) => x.id === id);
       if (!set) break;

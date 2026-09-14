@@ -178,9 +178,14 @@ function sessionScreen(iso, { tab, weighInBanner = '' }) {
     btn = `<button class="btn" data-action="start-session" data-date="${iso}" style="margin-top:16px">${s ? 'Continua' : 'Inizia'} allenamento</button>`;
   }
 
+  // riavvia (solo se la sessione esiste, cioè ci sono dati registrati)
+  const restartBtn = s
+    ? `<button class="btn ghost" data-action="restart-session" data-date="${iso}" style="margin-top:10px;color:var(--effort)">↻ Riavvia allenamento</button>`
+    : '';
+
   return `${head}${weighInBanner}${banner}${control}
     <div class="card pad" style="padding-top:4px;padding-bottom:4px">${list}</div>
-    ${btn}`;
+    ${btn}${restartBtn}`;
 }
 
 /* ---------------- Exercise detail ---------------- */
