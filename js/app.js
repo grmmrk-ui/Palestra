@@ -5,9 +5,12 @@ import { isoDate, fmtDuration, toast, parseISO, ACCENTS } from './util.js';
 
 const app = document.getElementById('app');
 const tabbar = document.getElementById('tabbar');
+const hud = document.getElementById('hud');
 
 let calYM = { y: new Date().getFullYear(), m: new Date().getMonth() };
 let restState = null; // { endsAt }
+let wakeLock = null;
+let audioCtx = null, silentSrc = null;
 
 /* ---------- theme ---------- */
 function applyTheme(t) {
@@ -27,6 +30,69 @@ function applyAccent(key) {
   const root = document.documentElement;
   root.style.setProperty('--effort', a.main);
   root.style.setProperty('--grad', a.grad);
+}
+
+/* ---------- keep screen on (Wake Lock) ---------- */
+async function acquireWake() {
+  try {
+    if ('wakeLock' in navigator && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    }
+  } catch (e) { /* non supportato o negato */ }
+}
+async function releaseWake() {
+  try { if (wakeLock) { await wakeLock.release(); wakeLock = null; } } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && currentExercise()) acquireWake();
+});
+
+/* ---------- audio: bip + attivazione Media Session ---------- */
+function ensureAudio() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    // sorgente silenziosa in loop: tiene viva la sessione media (controlli da lockscreen su Android)
+    if (!silentSrc && audioCtx) {
+      const buf = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+      silentSrc = audioCtx.createBufferSource();
+      silentSrc.buffer = buf; silentSrc.loop = true;
+      const g = audioCtx.createGain(); g.gain.value = 0.0001;
+      silentSrc.connect(g); g.connect(audioCtx.destination);
+      silentSrc.start();
+    }
+  } catch (e) {}
+}
+function beep() {
+  try {
+    ensureAudio();
+    if (!audioCtx) return;
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = 880; g.gain.value = 0.18;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + 0.18);
+    const o2 = audioCtx.createOscillator(), g2 = audioCtx.createGain();
+    o2.type = 'sine'; o2.frequency.value = 1200; g2.gain.value = 0.18;
+    o2.connect(g2); g2.connect(audioCtx.destination);
+    o2.start(audioCtx.currentTime + 0.2); o2.stop(audioCtx.currentTime + 0.4);
+  } catch (e) {}
+}
+function setupMediaHandlers() {
+  if (!('mediaSession' in navigator)) return;
+  try {
+    const adv = () => { advanceWorkout(); };
+    navigator.mediaSession.setActionHandler('play', adv);
+    navigator.mediaSession.setActionHandler('pause', adv);
+    navigator.mediaSession.setActionHandler('nexttrack', adv);
+    navigator.mediaSession.playbackState = 'playing';
+  } catch (e) {}
+}
+function updateMediaMeta(title, subtitle) {
+  if (!('mediaSession' in navigator) || !window.MediaMetadata) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({ title, artist: subtitle, album: 'Palestra' });
+  } catch (e) {}
 }
 
 /* ---------- routing ---------- */
@@ -69,7 +135,95 @@ function render() {
   app.innerHTML = html;
   renderTabs(activeTab);
   window.scrollTo(0, 0);
+  manageWorkoutChrome();
 }
+
+/* ---------- workout guided mode (HUD + lockscreen) ---------- */
+function currentExercise() {
+  const { base, args } = route();
+  if (base !== 'exercise') return null;
+  return st.logExById(args[0]);
+}
+function nextExerciseOf(e) {
+  const list = st.logExOfSession(e.sessionId);
+  const i = list.findIndex((x) => x.id === e.id);
+  return i >= 0 ? list[i + 1] : null;
+}
+
+function manageWorkoutChrome() {
+  const e = currentExercise();
+  if (!e || e.kind === 'cardio') {
+    hud.hidden = true;
+    app.classList.remove('has-hud');
+    tabbar.hidden = false;
+    releaseWake();
+    try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'; } catch (er) {}
+    return;
+  }
+  // guided mode active
+  tabbar.hidden = true;
+  hud.hidden = false;
+  app.classList.add('has-hud');
+  acquireWake();
+  renderHud(e);
+}
+
+function renderHud(e) {
+  const sets = st.setsOfLogEx(e.id);
+  const cur = sets.find((s) => !s.done);
+  if (restState) {
+    hud.innerHTML = `
+      <div class="phase">
+        <div><div class="lab">Recupero</div><div class="sub">poi serie ${cur ? cur.index : '—'} di ${sets.length}</div></div>
+        <div class="big tnum" data-rest>${fmtDuration(Math.max(0, Math.round((restState.endsAt - Date.now()) / 1000)))}</div>
+      </div>
+      <button class="hud-btn resting" data-action="advance">Salta recupero →</button>`;
+    updateMediaMeta(`Recupero · ${fmtDuration(Math.max(0, Math.round((restState.endsAt - Date.now()) / 1000)))}`, e.name);
+  } else if (cur) {
+    hud.innerHTML = `
+      <div class="phase">
+        <div><div class="lab">In corso</div><div class="sub">${esc(e.name)}</div></div>
+        <div class="big tnum">${cur.index}<span style="font-size:22px;color:var(--muted)">/${sets.length}</span></div>
+      </div>
+      <button class="hud-btn" data-action="advance">✓ Serie ${cur.index} fatta</button>`;
+    updateMediaMeta(`Serie ${cur.index}/${sets.length} · ${e.name}`, 'Tocca ⏭ per completare');
+  } else {
+    const next = nextExerciseOf(e);
+    hud.innerHTML = `
+      <div class="phase">
+        <div><div class="lab">Esercizio completato ✓</div><div class="sub">${esc(e.name)}</div></div>
+      </div>
+      <button class="hud-btn finish" data-action="advance">${next ? 'Prossimo esercizio →' : 'Torna alla sessione →'}</button>`;
+    updateMediaMeta(`Completato · ${e.name}`, next ? 'Prossimo esercizio' : 'Fine');
+  }
+}
+
+async function advanceWorkout() {
+  const e = currentExercise();
+  if (!e) return;
+  ensureAudio();
+  setupMediaHandlers();
+  if (restState) { restState = null; render(); return; }
+  const sets = st.setsOfLogEx(e.id);
+  const cur = sets.find((s) => !s.done);
+  if (cur) {
+    await ensureStarted(cur.id);
+    await st.patchSet(cur.id, { done: true });
+    const remaining = st.setsOfLogEx(e.id).filter((s) => !s.done);
+    if (remaining.length) {
+      const sec = cur.restSec ?? e.restSec;
+      if (sec) restState = { endsAt: Date.now() + sec * 1000 };
+    }
+    render();
+    return;
+  }
+  const next = nextExerciseOf(e);
+  const sess = S.sessions.find((x) => x.id === e.sessionId);
+  location.hash = next ? `#/exercise/${next.id}` : `#/session/${sess.date}`;
+}
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 /* ---------- ticker (session elapsed + rest countdown) ---------- */
 function tick() {
@@ -78,16 +232,20 @@ function tick() {
     const start = Number(el.getAttribute('data-elapsed'));
     el.textContent = fmtDuration((Date.now() - start) / 1000);
   }
-  const rest = app.querySelector('[data-rest]');
-  if (rest && restState) {
+  if (restState) {
     const rem = Math.round((restState.endsAt - Date.now()) / 1000);
     if (rem <= 0) {
-      rest.textContent = '0:00';
       restState = null;
-      if (navigator.vibrate) navigator.vibrate(200);
-      toast('Riposo finito 💪');
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      beep();
+      toast('Recupero finito 💪');
+      const e = currentExercise();
+      if (e) renderHud(e); else { const r = document.querySelector('[data-rest]'); if (r) r.textContent = '0:00'; }
     } else {
-      rest.textContent = fmtDuration(rem);
+      const r = document.querySelector('[data-rest]');
+      if (r) r.textContent = fmtDuration(rem);
+      const e = currentExercise();
+      if (e) updateMediaMeta(`Recupero · ${fmtDuration(rem)}`, e.name);
     }
   }
 }
@@ -155,6 +313,7 @@ document.addEventListener('click', async (ev) => {
       restState = { endsAt: Date.now() + Number(t.dataset.sec) * 1000 };
       break;
     }
+    case 'advance': await advanceWorkout(); break;
     case 'add-weight': {
       const kg = num(document.getElementById('wkg').value);
       const date = document.getElementById('wdate').value || isoDate();

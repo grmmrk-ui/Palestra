@@ -229,13 +229,7 @@ export function renderExercise(id) {
     <div class="setrow head"><span></span><span>Peso</span><span>Reps</span><span>Rec (s)</span><span></span></div>
     <div class="setgrid">${rows}</div>
   </div>
-  <p class="muted" style="margin:10px 2px 0;font-size:12px">Il timer di recupero parte da solo quando completi una serie, con il valore <b>Rec</b> di quella serie.</p>
-
-  <div class="timer" style="margin-top:14px">
-    <div><div class="rest-lab">Recupero</div><div class="faint" style="font-size:11px;color:#AEB8C4" data-rest-status>tocca ✓ su una serie</div></div>
-    <div class="clock tnum" data-rest>${fmtDuration(e.restSec)}</div>
-    <button class="btn-sm btn dark" data-action="rest-start" data-sec="${e.restSec}" style="margin-left:12px">Avvia</button>
-  </div>
+  <p class="muted" style="margin:10px 2px 0;font-size:12px">Usa il pulsantone in basso per farti guidare, oppure correggi i valori qui sopra a mano.</p>
 
   <div class="card pad" style="margin-top:14px">${noteField(e)}</div>`;
 }
