@@ -1,5 +1,5 @@
 // Palestra — service worker (offline app shell)
-const CACHE = 'palestra-v17';
+const CACHE = 'palestra-v18';
 const ASSETS = [
   './',
   './index.html',
@@ -106,11 +106,15 @@ async function renderWorkoutNotification(reg, live) {
 
   if (live.phase === 'rest') {
     const nextSet = sets.find((s) => !s.done);
+    const p2 = (n) => String(n).padStart(2, '0');
+    let endClk = '';
+    if (live.restEndsAt) { const d = new Date(live.restEndsAt); endClk = `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`; }
+    const poi = nextSet ? `serie ${nextSet.index} di ${tot}` : 'prossimo esercizio';
     await clearWorkoutNotifs(reg);
     // notifica "in corso" (silenziosa)
     await reg.showNotification('⏱ Recupero', {
       ...base, silent: true,
-      body: nextSet ? `Poi: serie ${nextSet.index} di ${tot} · ${ex.name}` : `Poi: prossimo esercizio`,
+      body: `${endClk ? `Fino alle ${endClk} · ` : ''}poi ${poi}`,
       actions: [{ action: 'next', title: '▶ Prossima serie' }],
     });
     // notifica temporizzata a fine recupero (vibra) — se supportato

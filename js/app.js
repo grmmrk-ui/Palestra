@@ -440,6 +440,26 @@ document.addEventListener('click', async (ev) => {
       render();
       break;
     }
+    case 'test-notify': {
+      if (!('Notification' in window)) { toast('Notifiche non supportate'); break; }
+      let perm = Notification.permission;
+      if (perm === 'default') perm = await Notification.requestPermission();
+      if (perm !== 'granted') { toast('Permesso notifiche negato'); break; }
+      const reg = await navigator.serviceWorker?.ready;
+      if (!reg) { toast('Service worker non pronto'); break; }
+      const opts = { tag: 'palestra-test', body: 'Se la vedi da schermo bloccato, funziona 💪', requireInteraction: true, icon: './icons/icon-192.png', badge: './icons/icon-192.png', vibrate: [200, 100, 200] };
+      try {
+        if (triggerSupported) {
+          opts.showTrigger = new TimestampTrigger(Date.now() + 5000);
+          await reg.showNotification('Test tra 5 secondi…', opts);
+          toast('Blocca lo schermo: arriva tra 5s');
+        } else {
+          await reg.showNotification('Test notifica', opts);
+          toast('Mostrata ora (questo browser non la programma da bloccato)');
+        }
+      } catch (e) { toast('Errore: ' + e.message); }
+      break;
+    }
     case 'toggle-notify': {
       const cur = (S.settings.workout || {}).notify === true;
       if (!cur) {

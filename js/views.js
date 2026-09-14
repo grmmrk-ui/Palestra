@@ -400,6 +400,13 @@ export function renderProfile() {
       <div><div style="font-weight:600">Notifica-telecomando</div><div class="muted" style="font-size:12px">Gestisci serie e recuperi dai pulsanti della notifica, anche da bloccato (Android)</div></div>
       <button class="toggle ${(S.settings.workout||{}).notify === true ? 'on' : ''}" data-action="toggle-notify" aria-label="Notifiche recupero"></button>
     </div>
+    <div class="row spread" style="padding:8px 2px 4px;flex-wrap:wrap;gap:8px">
+      <span class="muted" style="font-size:12px">Avviso a schermo bloccato: ${(() => {
+        const ok = 'Notification' in window && window.Notification.prototype && 'showTrigger' in window.Notification.prototype && 'TimestampTrigger' in window;
+        return ok ? '<b style="color:var(--rest)">supportato ✓</b>' : '<b style="color:var(--effort)">non supportato qui</b>';
+      })()}</span>
+      <button class="btn ghost btn-sm" data-action="test-notify" style="width:auto">🔔 Prova (5s)</button>
+    </div>
     <hr class="hr">
     <div class="row spread" style="padding:10px 0">
       <div><div style="font-weight:600">Suoni</div><div class="muted" style="font-size:12px">Bip a fine recupero (sopra la musica)</div></div>
