@@ -102,6 +102,7 @@ async function syncLive() {
     await st.setLive({
       active: true, sessionId: e.sessionId, exerciseId: e.id,
       phase, restEndsAt: restState ? restState.endsAt : null,
+      sound: (S.settings.workout || {}).sound !== false,
     });
     tellSW();
   } catch (err) {}

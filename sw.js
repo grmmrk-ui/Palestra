@@ -1,5 +1,5 @@
 // Palestra — service worker (offline app shell)
-const CACHE = 'palestra-v11';
+const CACHE = 'palestra-v12';
 const ASSETS = [
   './',
   './index.html',
@@ -110,7 +110,7 @@ async function renderWorkoutNotification(reg, live) {
     if (TRIGGER_OK && live.restEndsAt) {
       try {
         await reg.showNotification('Recupero finito 💪', {
-          ...base, vibrate: [200, 100, 200],
+          ...base, vibrate: [200, 100, 200], silent: live.sound === false, // Suoni OFF → nessun audio (non tocca Spotify)
           body: nextSet ? `Inizia la serie ${nextSet.index} · ${ex.name}` : `Passa al prossimo esercizio`,
           actions: [{ action: nextSet ? 'next' : 'nextex', title: nextSet ? '▶ Prossima serie' : '→ Prossimo esercizio' }],
           showTrigger: new TimestampTrigger(live.restEndsAt),
