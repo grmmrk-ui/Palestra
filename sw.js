@@ -1,5 +1,5 @@
 // Palestra — service worker (offline app shell)
-const CACHE = 'palestra-v9';
+const CACHE = 'palestra-v10';
 const ASSETS = [
   './',
   './index.html',
@@ -52,12 +52,16 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   if (url.origin !== location.origin) return; // let cross-origin (e.g. Supabase) pass through
-  // App assets: cache-first with network fallback
-  e.respondWith(
-    caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-      const copy = res.clone();
-      caches.open(CACHE).then((c) => c.put(req, copy));
+  // App assets: network-first (sempre fresco online), cache come fallback offline
+  e.respondWith((async () => {
+    try {
+      const res = await fetch(req);
+      const cache = await caches.open(CACHE);
+      cache.put(req, res.clone());
       return res;
-    }).catch(() => caches.match('./index.html')))
-  );
+    } catch (err) {
+      const hit = await caches.match(req);
+      return hit || caches.match('./index.html');
+    }
+  })());
 });
