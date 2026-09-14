@@ -35,6 +35,7 @@ function applyAccent(key) {
 /* ---------- keep screen on (Wake Lock) ---------- */
 async function acquireWake() {
   try {
+    if ((S.settings.workout || {}).keepScreenOn === false) return;
     if ('wakeLock' in navigator && !wakeLock) {
       wakeLock = await navigator.wakeLock.request('screen');
       wakeLock.addEventListener('release', () => { wakeLock = null; });
@@ -58,6 +59,7 @@ function ensureAudio() {
 }
 function beep() {
   try {
+    if ((S.settings.workout || {}).sound === false) return;
     ensureAudio();
     if (!audioCtx) return;
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
@@ -292,6 +294,20 @@ document.addEventListener('click', async (ev) => {
       break;
     }
     case 'del-weight': await st.deleteBodyweight(id); render(); break;
+    case 'toggle-sound': {
+      const cur = (S.settings.workout || {}).sound !== false;
+      await st.patchSettings({ workout: { ...(S.settings.workout || {}), sound: !cur } });
+      render();
+      break;
+    }
+    case 'toggle-screen': {
+      const cur = (S.settings.workout || {}).keepScreenOn !== false;
+      const nv = !cur;
+      await st.patchSettings({ workout: { ...(S.settings.workout || {}), keepScreenOn: nv } });
+      if (!nv) releaseWake(); else if (currentExercise()) acquireWake();
+      render();
+      break;
+    }
 
     /* ---- editor scheda ---- */
     case 'add-day': {

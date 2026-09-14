@@ -385,6 +385,19 @@ export function renderProfile() {
       <div class="swatches">${swatches}</div></div>
   </div>
 
+  <div class="sect">Allenamento</div>
+  <div class="card pad">
+    <div class="row spread" style="padding:6px 0">
+      <div><div style="font-weight:600">Suoni</div><div class="muted" style="font-size:12px">Bip a fine recupero (sopra la musica)</div></div>
+      <button class="toggle ${(S.settings.workout||{}).sound !== false ? 'on' : ''}" data-action="toggle-sound" aria-label="Suoni"></button>
+    </div>
+    <hr class="hr">
+    <div class="row spread" style="padding:10px 0 6px">
+      <div><div style="font-weight:600">Tieni schermo acceso</div><div class="muted" style="font-size:12px">Evita il blocco durante l'allenamento</div></div>
+      <button class="toggle ${(S.settings.workout||{}).keepScreenOn !== false ? 'on' : ''}" data-action="toggle-screen" aria-label="Schermo acceso"></button>
+    </div>
+  </div>
+
   <div class="sect">App</div>
   <div class="card pad">
     <div class="row spread" style="padding:6px 0"><span>Versione</span><span class="chip effort">${APP_VERSION}</span></div>

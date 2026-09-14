@@ -55,6 +55,7 @@ export function buildSeed() {
     theme: 'system',
     accent: 'coral',
     profile: { name: '', goal: '', heightCm: null },
+    workout: { sound: true, keepScreenOn: true },
     seededAt: Date.now(),
   };
 
