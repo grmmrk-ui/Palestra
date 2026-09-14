@@ -10,7 +10,7 @@ const hud = document.getElementById('hud');
 let calYM = { y: new Date().getFullYear(), m: new Date().getMonth() };
 let restState = null; // { endsAt }
 let wakeLock = null;
-let audioCtx = null, silentSrc = null;
+let audioCtx = null;
 
 /* ---------- theme ---------- */
 function applyTheme(t) {
@@ -48,20 +48,12 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && currentExercise()) acquireWake();
 });
 
-/* ---------- audio: bip + attivazione Media Session ---------- */
+/* ---------- audio: solo bip (Web Audio, si sovrappone alla musica) ---------- */
+// Nessun elemento media, nessuna Media Session: non tocca Spotify o altri player.
 function ensureAudio() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    // sorgente silenziosa in loop: tiene viva la sessione media (controlli da lockscreen su Android)
-    if (!silentSrc && audioCtx) {
-      const buf = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
-      silentSrc = audioCtx.createBufferSource();
-      silentSrc.buffer = buf; silentSrc.loop = true;
-      const g = audioCtx.createGain(); g.gain.value = 0.0001;
-      silentSrc.connect(g); g.connect(audioCtx.destination);
-      silentSrc.start();
-    }
   } catch (e) {}
 }
 function beep() {
@@ -78,23 +70,6 @@ function beep() {
     o2.start(audioCtx.currentTime + 0.2); o2.stop(audioCtx.currentTime + 0.4);
   } catch (e) {}
 }
-function setupMediaHandlers() {
-  if (!('mediaSession' in navigator)) return;
-  try {
-    const adv = () => { advanceWorkout(); };
-    navigator.mediaSession.setActionHandler('play', adv);
-    navigator.mediaSession.setActionHandler('pause', adv);
-    navigator.mediaSession.setActionHandler('nexttrack', adv);
-    navigator.mediaSession.playbackState = 'playing';
-  } catch (e) {}
-}
-function updateMediaMeta(title, subtitle) {
-  if (!('mediaSession' in navigator) || !window.MediaMetadata) return;
-  try {
-    navigator.mediaSession.metadata = new MediaMetadata({ title, artist: subtitle, album: 'Palestra' });
-  } catch (e) {}
-}
-
 /* ---------- routing ---------- */
 function route() {
   const h = location.hash.replace(/^#\/?/, '');
@@ -157,7 +132,6 @@ function manageWorkoutChrome() {
     app.classList.remove('has-hud');
     tabbar.hidden = false;
     releaseWake();
-    try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'; } catch (er) {}
     return;
   }
   // guided mode active
@@ -178,7 +152,6 @@ function renderHud(e) {
         <div class="big tnum" data-rest>${fmtDuration(Math.max(0, Math.round((restState.endsAt - Date.now()) / 1000)))}</div>
       </div>
       <button class="hud-btn resting" data-action="advance">Salta recupero →</button>`;
-    updateMediaMeta(`Recupero · ${fmtDuration(Math.max(0, Math.round((restState.endsAt - Date.now()) / 1000)))}`, e.name);
   } else if (cur) {
     hud.innerHTML = `
       <div class="phase">
@@ -186,7 +159,6 @@ function renderHud(e) {
         <div class="big tnum">${cur.index}<span style="font-size:22px;color:var(--muted)">/${sets.length}</span></div>
       </div>
       <button class="hud-btn" data-action="advance">✓ Serie ${cur.index} fatta</button>`;
-    updateMediaMeta(`Serie ${cur.index}/${sets.length} · ${e.name}`, 'Tocca ⏭ per completare');
   } else {
     const next = nextExerciseOf(e);
     hud.innerHTML = `
@@ -194,7 +166,6 @@ function renderHud(e) {
         <div><div class="lab">Esercizio completato ✓</div><div class="sub">${esc(e.name)}</div></div>
       </div>
       <button class="hud-btn finish" data-action="advance">${next ? 'Prossimo esercizio →' : 'Torna alla sessione →'}</button>`;
-    updateMediaMeta(`Completato · ${e.name}`, next ? 'Prossimo esercizio' : 'Fine');
   }
 }
 
@@ -202,7 +173,6 @@ async function advanceWorkout() {
   const e = currentExercise();
   if (!e) return;
   ensureAudio();
-  setupMediaHandlers();
   if (restState) { restState = null; render(); return; }
   const sets = st.setsOfLogEx(e.id);
   const cur = sets.find((s) => !s.done);
@@ -244,8 +214,6 @@ function tick() {
     } else {
       const r = document.querySelector('[data-rest]');
       if (r) r.textContent = fmtDuration(rem);
-      const e = currentExercise();
-      if (e) updateMediaMeta(`Recupero · ${fmtDuration(rem)}`, e.name);
     }
   }
 }
