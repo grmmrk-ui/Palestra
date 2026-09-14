@@ -163,6 +163,16 @@ export async function patchSettings(patch) {
   await db.put('settings', S.settings);
 }
 
+/* ---- live workout (telecomando notifica) ---- */
+export const getLive = () => db.get('settings', 'live');
+export async function setLive(live) { live.id = 'live'; await db.put('settings', live); return live; }
+export async function reloadWorkout() {
+  const [sessions, logExercises, logSets] = await Promise.all([
+    db.getAll('sessions'), db.getAll('logExercises'), db.getAll('logSets'),
+  ]);
+  S.sessions = sessions; S.logExercises = logExercises; S.logSets = logSets;
+}
+
 /* ---- program / schede editor ---- */
 export async function renameProgram(name) {
   const p = activeProgram();

@@ -388,7 +388,7 @@ export function renderProfile() {
   <div class="sect">Allenamento</div>
   <div class="card pad">
     <div class="row spread" style="padding:6px 0">
-      <div><div style="font-weight:600">Notifiche recupero</div><div class="muted" style="font-size:12px">Avviso a fine recupero anche a schermo bloccato (Android)</div></div>
+      <div><div style="font-weight:600">Notifica-telecomando</div><div class="muted" style="font-size:12px">Gestisci serie e recuperi dai pulsanti della notifica, anche da bloccato (Android)</div></div>
       <button class="toggle ${(S.settings.workout||{}).notify === true ? 'on' : ''}" data-action="toggle-notify" aria-label="Notifiche recupero"></button>
     </div>
     <hr class="hr">

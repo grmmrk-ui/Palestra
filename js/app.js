@@ -72,42 +72,39 @@ function beep() {
     o2.start(audioCtx.currentTime + 0.2); o2.stop(audioCtx.currentTime + 0.4);
   } catch (e) {}
 }
-/* ---------- notifica recupero (Notification Triggers, senza server) ---------- */
-const triggerSupported = typeof window !== 'undefined' && 'Notification' in window
-  && window.Notification.prototype && 'showTrigger' in window.Notification.prototype
-  && 'TimestampTrigger' in window;
+/* ---------- telecomando notifica: sincronizza lo stato "live" col SW ---------- */
+const triggerSupported = 'Notification' in window && window.Notification.prototype
+  && 'showTrigger' in window.Notification.prototype && 'TimestampTrigger' in window;
 
 function notifyEnabled() {
   return (S.settings.workout || {}).notify === true
     && 'Notification' in window && Notification.permission === 'granted';
 }
-async function swReg() {
-  try { return await navigator.serviceWorker?.ready; } catch (e) { return null; }
-}
-async function clearRestNotification() {
-  const reg = await swReg();
-  if (!reg) return;
+function tellSW() {
   try {
-    const ns = await reg.getNotifications({ tag: 'palestra-rest', includeTriggered: true });
-    ns.forEach((n) => n.close());
+    navigator.serviceWorker?.ready.then((r) => {
+      (r.active || navigator.serviceWorker.controller)?.postMessage({ type: 'render-workout' });
+    }).catch(() => {});
   } catch (e) {}
 }
-async function scheduleRestNotification(endsAt, label) {
-  if (!notifyEnabled() || !triggerSupported) return;
-  const reg = await swReg();
-  if (!reg) return;
+// Scrive lo stato corrente dell'allenamento in DB e chiede al SW di aggiornare la notifica.
+async function syncLive() {
   try {
-    await clearRestNotification();
-    await reg.showNotification('Recupero finito 💪', {
-      tag: 'palestra-rest', body: label, requireInteraction: true,
-      vibrate: [200, 100, 200], icon: './icons/icon-192.png', badge: './icons/icon-192.png',
-      showTrigger: new TimestampTrigger(endsAt), data: { type: 'rest' },
+    const e = currentExercise();
+    if (!notifyEnabled() || !e || e.kind === 'cardio') {
+      await st.setLive({ active: false });
+      tellSW();
+      return;
+    }
+    const sets = st.setsOfLogEx(e.id);
+    const cur = sets.find((s) => !s.done);
+    const phase = restState ? 'rest' : (cur ? 'work' : 'exdone');
+    await st.setLive({
+      active: true, sessionId: e.sessionId, exerciseId: e.id,
+      phase, restEndsAt: restState ? restState.endsAt : null,
     });
-  } catch (e) {}
-}
-function startRest(sec, label) {
-  restState = { endsAt: Date.now() + sec * 1000 };
-  scheduleRestNotification(restState.endsAt, label);
+    tellSW();
+  } catch (err) {}
 }
 
 /* ---------- routing ---------- */
@@ -151,6 +148,7 @@ function render() {
   renderTabs(activeTab);
   window.scrollTo(0, 0);
   manageWorkoutChrome();
+  syncLive();
 }
 
 /* ---------- workout guided mode (HUD + lockscreen) ---------- */
@@ -213,7 +211,7 @@ async function advanceWorkout() {
   const e = currentExercise();
   if (!e) return;
   ensureAudio();
-  if (restState) { restState = null; clearRestNotification(); render(); return; }
+  if (restState) { restState = null; render(); return; }
   const sets = st.setsOfLogEx(e.id);
   const cur = sets.find((s) => !s.done);
   if (cur) {
@@ -222,7 +220,7 @@ async function advanceWorkout() {
     const remaining = st.setsOfLogEx(e.id).filter((s) => !s.done);
     if (remaining.length) {
       const sec = cur.restSec ?? e.restSec;
-      if (sec) startRest(sec, `${e.name} · serie ${remaining[0].index} di ${sets.length}`);
+      if (sec) restState = { endsAt: Date.now() + sec * 1000 };
     }
     render();
     return;
@@ -246,12 +244,11 @@ function tick() {
     const rem = Math.round((restState.endsAt - Date.now()) / 1000);
     if (rem <= 0) {
       restState = null;
-      clearRestNotification(); // l'app è in primo piano: evita il popup doppio
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
       beep();
       toast('Recupero finito 💪');
       const e = currentExercise();
-      if (e) renderHud(e); else { const r = document.querySelector('[data-rest]'); if (r) r.textContent = '0:00'; }
+      if (e) render(); else { const r = document.querySelector('[data-rest]'); if (r) r.textContent = '0:00'; }
     } else {
       const r = document.querySelector('[data-rest]');
       if (r) r.textContent = fmtDuration(rem);
@@ -313,7 +310,7 @@ document.addEventListener('click', async (ev) => {
       if (nowDone && set.kind !== 'cardio') {
         const le = st.logExById(set.logExerciseId);
         const sec = set.restSec ?? (le && le.restSec);
-        if (sec) startRest(sec, `${le ? le.name : 'Esercizio'} · recupero`);
+        if (sec) restState = { endsAt: Date.now() + sec * 1000 };
       }
       render();
       break;
@@ -459,6 +456,18 @@ function shiftMonth({ y, m }, delta) {
   m += delta;
   if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
   return { y, m };
+}
+
+/* ---------- il SW ha avanzato l'allenamento dai pulsanti notifica ---------- */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', async (ev) => {
+    if ((ev.data || {}).type !== 'workout-advanced') return;
+    await st.reloadWorkout();
+    const live = await st.getLive();
+    restState = (live && live.active && live.phase === 'rest' && live.restEndsAt)
+      ? { endsAt: live.restEndsAt } : null;
+    render();
+  });
 }
 
 /* ---------- boot ---------- */

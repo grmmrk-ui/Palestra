@@ -1,5 +1,5 @@
 // Palestra — service worker (offline app shell)
-const CACHE = 'palestra-v10';
+const CACHE = 'palestra-v11';
 const ASSETS = [
   './',
   './index.html',
@@ -26,16 +26,140 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Tap sulla notifica → porta in primo piano l'app (o la apre)
+/* ============================================================
+   Telecomando allenamento: notifica con pulsanti guidata dal SW.
+   Legge/scrive lo stesso IndexedDB dell'app. Solo Android supporta
+   i pulsanti-azione nelle notifiche.
+   ============================================================ */
+const WTAG = 'palestra-workout';
+const TRIGGER_OK = 'showTrigger' in Notification.prototype && 'TimestampTrigger' in self;
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('palestra');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+function reqP(req) { return new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error); }); }
+async function dbGet(store, id) { const db = await openDB(); return reqP(db.transaction(store, 'readonly').objectStore(store).get(id)); }
+async function dbPut(store, val) { const db = await openDB(); return reqP(db.transaction(store, 'readwrite').objectStore(store).put(val)); }
+async function dbIndexAll(store, index, key) {
+  const db = await openDB();
+  return reqP(db.transaction(store, 'readonly').objectStore(store).index(index).getAll(key));
+}
+const setsFor = async (exId) => (await dbIndexAll('logSets', 'logExerciseId', exId)).sort((a, b) => a.index - b.index);
+const exsFor = async (sid) => (await dbIndexAll('logExercises', 'sessionId', sid)).sort((a, b) => a.order - b.order);
+const loadLive = async () => (await dbGet('settings', 'live')) || null;
+async function saveLive(live) { live.id = 'live'; await dbPut('settings', live); return live; }
+
+async function advance(action) {
+  const live = await loadLive();
+  if (!live || !live.active) return null;
+  const ex = await dbGet('logExercises', live.exerciseId);
+  if (!ex) return null;
+  let sets = await setsFor(live.exerciseId);
+
+  if (action === 'done') {
+    const cur = sets.find((s) => !s.done);
+    if (cur) {
+      cur.done = true; await dbPut('logSets', cur);
+      sets = await setsFor(live.exerciseId);
+      const sec = (cur.restSec != null ? cur.restSec : ex.restSec) || 0;
+      live.phase = 'rest';
+      live.restEndsAt = Date.now() + sec * 1000;
+    }
+  } else if (action === 'next') { // recupero finito / salta
+    live.phase = sets.some((s) => !s.done) ? 'work' : 'exdone';
+    live.restEndsAt = null;
+  } else if (action === 'nextex') {
+    const exs = await exsFor(live.sessionId);
+    const i = exs.findIndex((x) => x.id === live.exerciseId);
+    const nxt = exs[i + 1];
+    if (nxt) { live.exerciseId = nxt.id; live.phase = 'work'; live.restEndsAt = null; }
+    else { live.active = false; }
+  }
+  return saveLive(live);
+}
+
+async function clearWorkoutNotifs(reg) {
+  try {
+    const ns = await reg.getNotifications({ tag: WTAG, includeTriggered: true });
+    ns.forEach((n) => n.close());
+  } catch (e) {}
+}
+
+async function renderWorkoutNotification(reg, live) {
+  if (!live || !live.active) { await clearWorkoutNotifs(reg); return; }
+  const ex = await dbGet('logExercises', live.exerciseId);
+  if (!ex) { await clearWorkoutNotifs(reg); return; }
+  const sets = await setsFor(live.exerciseId);
+  const tot = sets.length;
+  const base = { tag: WTAG, requireInteraction: true, icon: './icons/icon-192.png', badge: './icons/icon-192.png', data: { workout: true } };
+
+  if (live.phase === 'rest') {
+    const nextSet = sets.find((s) => !s.done);
+    await clearWorkoutNotifs(reg);
+    // notifica "in corso" (silenziosa)
+    await reg.showNotification('⏱ Recupero', {
+      ...base, silent: true,
+      body: nextSet ? `Poi: serie ${nextSet.index} di ${tot} · ${ex.name}` : `Poi: prossimo esercizio`,
+      actions: [{ action: 'next', title: '▶ Prossima serie' }],
+    });
+    // notifica temporizzata a fine recupero (vibra) — se supportato
+    if (TRIGGER_OK && live.restEndsAt) {
+      try {
+        await reg.showNotification('Recupero finito 💪', {
+          ...base, vibrate: [200, 100, 200],
+          body: nextSet ? `Inizia la serie ${nextSet.index} · ${ex.name}` : `Passa al prossimo esercizio`,
+          actions: [{ action: nextSet ? 'next' : 'nextex', title: nextSet ? '▶ Prossima serie' : '→ Prossimo esercizio' }],
+          showTrigger: new TimestampTrigger(live.restEndsAt),
+        });
+      } catch (e) {}
+    }
+  } else if (live.phase === 'exdone') {
+    await clearWorkoutNotifs(reg);
+    await reg.showNotification('Esercizio completato ✓', {
+      ...base, silent: true, body: ex.name,
+      actions: [{ action: 'nextex', title: '→ Prossimo esercizio' }],
+    });
+  } else { // work
+    const cur = sets.find((s) => !s.done) || sets[tot - 1];
+    await clearWorkoutNotifs(reg);
+    await reg.showNotification(ex.name, {
+      ...base, silent: true, body: `Serie ${cur ? cur.index : 1} di ${tot} · ${ex.muscle || ''}`.trim(),
+      actions: [{ action: 'done', title: '✓ Serie fatta' }],
+    });
+  }
+}
+
 self.addEventListener('notificationclick', (e) => {
+  const action = e.action;
   e.notification.close();
   e.waitUntil((async () => {
-    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const c of all) {
-      if ('focus' in c) { try { await c.navigate(c.url); } catch (_) {} return c.focus(); }
+    const reg = self.registration;
+    if (action === 'done' || action === 'next' || action === 'nextex') {
+      const live = await advance(action);
+      await renderWorkoutNotification(reg, live);
+      const cls = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      cls.forEach((c) => c.postMessage({ type: 'workout-advanced' }));
+      return;
     }
+    // tap sul corpo → porta in primo piano l'app
+    const cls = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of cls) { if ('focus' in c) { try { await c.navigate(c.url); } catch (_) {} return c.focus(); } }
     if (self.clients.openWindow) return self.clients.openWindow('./');
   })());
+});
+
+self.addEventListener('message', (e) => {
+  const d = e.data || {};
+  if (d.type === 'render-workout') {
+    e.waitUntil((async () => {
+      const live = await loadLive();
+      await renderWorkoutNotification(self.registration, live);
+    })());
+  }
 });
 
 self.addEventListener('fetch', (e) => {
