@@ -41,6 +41,10 @@ export const daysBetween = (isoA, isoB) =>
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// App version — bump on each notable release; shown in Profilo and in feedback.
+export const APP_VERSION = '0.6 beta';
+export const FEEDBACK_EMAIL = 'grmmrk@gmail.com';
+
 // Accent presets — swap the app's primary color.
 export const ACCENTS = {
   coral:  { name: 'Coral',   main: '#FF5A3C', grad: 'linear-gradient(135deg,#FF5A3C,#FF8A3C)' },

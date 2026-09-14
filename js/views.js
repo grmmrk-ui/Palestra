@@ -1,7 +1,7 @@
 // Screen renderers. Each returns an HTML string. Interactivity via data-action.
 import * as st from './state.js';
 import { S } from './state.js';
-import { esc, isoDate, parseISO, fmtDay, fmtDuration, fmtNum, WD, MONTHS, weekdayMon, ACCENTS, GOALS } from './util.js';
+import { esc, isoDate, parseISO, fmtDay, fmtDuration, fmtNum, WD, MONTHS, weekdayMon, ACCENTS, GOALS, APP_VERSION, FEEDBACK_EMAIL } from './util.js';
 
 /* ---------------- Calendar ---------------- */
 export function renderCalendar(ym) {
@@ -393,10 +393,20 @@ export function renderProfile() {
 
   <div class="sect">App</div>
   <div class="card pad">
-    <div class="row spread" style="padding:6px 0"><span>Sincronizzazione cloud</span><span class="chip ghost">In arrivo</span></div>
-    <p class="muted" style="font-size:12px;margin:0">I dati sono salvati sul dispositivo. La sincronizzazione tra telefoni (Supabase) arriva nel prossimo step.</p>
+    <div class="row spread" style="padding:6px 0"><span>Versione</span><span class="chip effort">${APP_VERSION}</span></div>
+    <hr class="hr">
+    <div class="row spread" style="padding:10px 0"><span>Sincronizzazione cloud</span><span class="chip ghost">In arrivo</span></div>
+    <p class="muted" style="font-size:12px;margin:0 0 12px">I dati sono salvati sul dispositivo. La sincronizzazione tra telefoni (Supabase) arriva nel prossimo step.</p>
+    <a class="btn ghost" href="${feedbackHref()}" style="display:block;text-align:center">✉️ Segnala un problema</a>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px;margin-top:20px">Palestra · PWA offline</p>`;
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:20px">Palestra · ${APP_VERSION} · PWA offline</p>`;
+}
+
+function feedbackHref() {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const subject = `Palestra ${APP_VERSION} — feedback`;
+  const body = `Scrivi qui il tuo feedback o il problema:\n\n\n\n———\nInfo tecniche (non cancellare):\nVersione: ${APP_VERSION}\nDispositivo: ${ua}`;
+  return `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 function themeLabel() {
