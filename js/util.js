@@ -41,6 +41,26 @@ export const daysBetween = (isoA, isoB) =>
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// Accent presets — swap the app's primary color.
+export const ACCENTS = {
+  coral:  { name: 'Coral',   main: '#FF5A3C', grad: 'linear-gradient(135deg,#FF5A3C,#FF8A3C)' },
+  blu:    { name: 'Blu',     main: '#3B82F6', grad: 'linear-gradient(135deg,#3B82F6,#60A5FA)' },
+  viola:  { name: 'Viola',   main: '#7C3AED', grad: 'linear-gradient(135deg,#7C3AED,#A855F7)' },
+  verde:  { name: 'Verde',   main: '#16A34A', grad: 'linear-gradient(135deg,#16A34A,#22C55E)' },
+  rosa:   { name: 'Rosa',    main: '#EC4899', grad: 'linear-gradient(135deg,#EC4899,#F472B6)' },
+  ambra:  { name: 'Ambra',   main: '#F59E0B', grad: 'linear-gradient(135deg,#F59E0B,#FBBF24)' },
+  ciano:  { name: 'Ciano',   main: '#0EA5E9', grad: 'linear-gradient(135deg,#0EA5E9,#38BDF8)' },
+  rosso:  { name: 'Rosso',   main: '#EF4444', grad: 'linear-gradient(135deg,#EF4444,#F87171)' },
+};
+
+export const GOALS = {
+  massa:          'Massa muscolare',
+  definizione:    'Definizione',
+  forza:          'Forza',
+  ricomposizione: 'Ricomposizione',
+  mantenimento:   'Mantenimento',
+};
+
 let toastTimer;
 export function toast(msg) {
   let t = document.querySelector('.toast');

@@ -53,6 +53,8 @@ export function buildSeed() {
     activeProgramId: programId,
     weighIn: { enabled: true, weekday: 0 }, // promemoria peso: lunedì
     theme: 'system',
+    accent: 'coral',
+    profile: { name: '', goal: '', heightCm: null },
     seededAt: Date.now(),
   };
 

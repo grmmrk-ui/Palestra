@@ -1,7 +1,7 @@
 // Screen renderers. Each returns an HTML string. Interactivity via data-action.
 import * as st from './state.js';
 import { S } from './state.js';
-import { esc, isoDate, parseISO, fmtDay, fmtDuration, fmtNum, WD, MONTHS, weekdayMon, fmtNum as _n } from './util.js';
+import { esc, isoDate, parseISO, fmtDay, fmtDuration, fmtNum, WD, MONTHS, weekdayMon, ACCENTS, GOALS } from './util.js';
 
 /* ---------------- Calendar ---------------- */
 export function renderCalendar(ym) {
@@ -251,6 +251,16 @@ export function renderWeight() {
   const delta = last && prev ? (last.kg - prev.kg) : null;
   const w = S.settings.weighIn;
   const iso = isoDate();
+  const h = (S.settings.profile || {}).heightCm;
+  let bmiLine = '';
+  if (h && last) {
+    const bmi = last.kg / ((h / 100) ** 2);
+    const cat = bmi < 18.5 ? 'sottopeso' : bmi < 25 ? 'normopeso' : bmi < 30 ? 'sovrappeso' : 'obesità';
+    bmiLine = `<div class="card pad" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+      <span class="muted" style="font-size:13px">BMI (altezza ${h} cm)</span>
+      <span><b class="tnum" style="font-family:'Barlow Condensed';font-size:20px">${fmtNum(Math.round(bmi * 10) / 10)}</b>
+        <span class="chip rest" style="margin-left:6px">${cat}</span></span></div>`;
+  }
 
   return `
   <div class="screen-head"><div><div class="kick">Composizione</div><h1>Peso</h1></div>
@@ -261,6 +271,7 @@ export function renderWeight() {
     <div class="tile"><div class="k">Variazione</div><div class="v tnum" style="${delta != null ? `color:${delta <= 0 ? 'var(--rest)' : 'var(--effort)'}` : ''}">${
       delta == null ? '—' : (delta > 0 ? '+' : '') + fmtNum(Math.round(delta * 10) / 10)}<small>${delta != null ? ' kg' : ''}</small></div></div>
   </div>
+  ${bmiLine}
 
   ${list.length >= 2 ? `<div class="card chartwrap">${sparkline(list)}</div>` : `
     <div class="card empty-state"><div class="em">⚖️</div>Registra almeno due pesate<br>per vedere l'andamento.</div>`}
@@ -329,8 +340,22 @@ export function renderProfile() {
       <span class="muted" style="font-size:12px">${d ? esc(d.muscles) : ''}</span></div>`;
   }).join('');
 
+  const prof = S.settings.profile || {};
+  const theme = S.settings.theme || 'system';
+  const accent = S.settings.accent || 'coral';
+
+  const goalOpts = `<option value="">— scegli —</option>` +
+    Object.entries(GOALS).map(([k, v]) => `<option value="${k}" ${prof.goal === k ? 'selected' : ''}>${v}</option>`).join('');
+
+  const segBtn = (val, label) =>
+    `<button class="${theme === val ? 'on' : ''}" data-action="set-theme" data-theme="${val}">${label}</button>`;
+
+  const swatches = Object.entries(ACCENTS).map(([k, a]) =>
+    `<button class="swatch ${k === accent ? 'on' : ''}" data-action="set-accent" data-key="${k}"
+      style="background:${a.main}" aria-label="${a.name}"></button>`).join('');
+
   return `
-  <div class="screen-head"><div><div class="kick">Profilo</div><h1>La tua scheda</h1></div>
+  <div class="screen-head"><div><div class="kick">Profilo</div><h1 style="text-wrap:balance">${prof.name ? 'Ciao, ' + esc(prof.name) : 'Il tuo profilo'}</h1></div>
     <button class="iconbtn" data-action="theme">◐</button></div>
 
   <div class="tiles">
@@ -338,6 +363,17 @@ export function renderProfile() {
     <div class="tile"><div class="k">Esercizi in scheda</div><div class="v tnum">${planCount}</div></div>
   </div>
 
+  <div class="sect">Tu</div>
+  <div class="card pad">
+    <div class="field"><label>Nome</label>
+      <input type="text" value="${esc(prof.name || '')}" data-action="prof-name" placeholder="Come ti chiami?"></div>
+    <div class="field"><label>Obiettivo</label>
+      <select data-action="prof-goal">${goalOpts}</select></div>
+    <div class="field" style="margin-bottom:0"><label>Altezza (cm)</label>
+      <input type="number" inputmode="numeric" value="${prof.heightCm ?? ''}" data-action="prof-height" placeholder="es. 178"></div>
+  </div>
+
+  <div class="sect">Programma</div>
   <div class="banner"><div class="lab">Programma attivo</div><div class="nm">${esc(prog.name)}</div>
     <div class="meta"><span>${days.length} giorni · split settimanale</span></div></div>
   <a class="btn" href="#/edit" style="margin-top:12px;display:block;text-align:center">Modifica scheda</a>
@@ -345,15 +381,20 @@ export function renderProfile() {
   <div class="sect">Settimana tipo</div>
   <div class="card pad" style="padding-top:2px;padding-bottom:2px">${week}</div>
 
+  <div class="sect">Aspetto</div>
+  <div class="card pad">
+    <div class="field"><label>Tema</label>
+      <div class="seg">${segBtn('system', 'Sistema')}${segBtn('light', 'Chiaro')}${segBtn('dark', 'Scuro')}</div></div>
+    <div class="field" style="margin-bottom:0"><label>Colore accento</label>
+      <div class="swatches">${swatches}</div></div>
+  </div>
+
   <div class="sect">App</div>
   <div class="card pad">
-    <div class="row spread" style="padding:6px 0"><span>Tema</span>
-      <button class="btn-sm btn ghost" data-action="theme">${themeLabel()}</button></div>
-    <hr class="hr">
-    <div class="row spread" style="padding:10px 0"><span>Sincronizzazione cloud</span><span class="chip ghost">In arrivo</span></div>
+    <div class="row spread" style="padding:6px 0"><span>Sincronizzazione cloud</span><span class="chip ghost">In arrivo</span></div>
     <p class="muted" style="font-size:12px;margin:0">I dati sono salvati sul dispositivo. La sincronizzazione tra telefoni (Supabase) arriva nel prossimo step.</p>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px;margin-top:20px">Palestra · v1 · PWA offline</p>`;
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:20px">Palestra · PWA offline</p>`;
 }
 
 function themeLabel() {

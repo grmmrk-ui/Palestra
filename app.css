@@ -2,7 +2,7 @@
   --ink:#12181F; --ink-2:#1B242E;
   --paper:#EEF0F3; --card:#FFFFFF; --line:#DDE1E7;
   --text:#12181F; --muted:#5B6675; --faint:#8A94A3;
-  --effort:#FF5A3C; --effort-soft:#FFE9E3;
+  --effort:#FF5A3C; --effort-soft:color-mix(in srgb, var(--effort) 15%, var(--card));
   --rest:#12A594; --rest-soft:#DBF3EF;
   --grad:linear-gradient(135deg,#FF5A3C,#FF8A3C);
   --shadow:0 12px 40px -14px rgba(18,24,31,.30);
@@ -15,7 +15,7 @@
     --ink:#05080B; --ink-2:#0E141B;
     --paper:#0B0F14; --card:#161D26; --line:#28323E;
     --text:#EAEEF3; --muted:#9AA6B4; --faint:#6B7684;
-    --effort-soft:#3A211A; --rest-soft:#0F2E2A;
+    --effort-soft:color-mix(in srgb, var(--effort) 26%, var(--card)); --rest-soft:#0F2E2A;
     --shadow:0 16px 44px -16px rgba(0,0,0,.6);
     --shadow-sm:0 2px 10px -2px rgba(0,0,0,.4);
   }
@@ -24,7 +24,7 @@
   --ink:#05080B; --ink-2:#0E141B;
   --paper:#0B0F14; --card:#161D26; --line:#28323E;
   --text:#EAEEF3; --muted:#9AA6B4; --faint:#6B7684;
-  --effort-soft:#3A211A; --rest-soft:#0F2E2A;
+  --effort-soft:color-mix(in srgb, var(--effort) 26%, var(--card)); --rest-soft:#0F2E2A;
   --shadow:0 16px 44px -16px rgba(0,0,0,.6);
   --shadow-sm:0 2px 10px -2px rgba(0,0,0,.4);
 }
@@ -172,6 +172,15 @@ a{color:inherit;text-decoration:none}
 .toggle.on{background:var(--rest)}
 .toggle::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .15s}
 .toggle.on::after{left:21px}
+
+/* segmented control + accent swatches */
+.seg{display:flex;gap:6px;background:var(--paper);border-radius:12px;padding:4px}
+.seg button{flex:1;border:0;background:none;color:var(--muted);padding:9px;border-radius:9px;font-weight:600;font-size:13px}
+.seg button.on{background:var(--card);color:var(--text);box-shadow:var(--shadow-sm)}
+.swatches{display:flex;gap:12px;flex-wrap:wrap}
+.swatch{width:40px;height:40px;border-radius:50%;border:2px solid var(--line);padding:0;position:relative;cursor:pointer}
+.swatch.on{border-color:var(--text)}
+.swatch.on::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:16px;font-weight:700}
 
 /* section title */
 .sect{font-family:"Barlow Condensed";text-transform:uppercase;font-weight:700;font-size:15px;letter-spacing:.04em;color:var(--muted);margin:22px 2px 10px}

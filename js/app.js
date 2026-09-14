@@ -1,7 +1,7 @@
 import * as st from './state.js';
 import { S } from './state.js';
 import * as V from './views.js';
-import { isoDate, fmtDuration, toast, parseISO } from './util.js';
+import { isoDate, fmtDuration, toast, parseISO, ACCENTS } from './util.js';
 
 const app = document.getElementById('app');
 const tabbar = document.getElementById('tabbar');
@@ -20,6 +20,13 @@ async function cycleTheme() {
   await st.patchSettings({ theme: next });
   applyTheme(next);
   render();
+}
+
+function applyAccent(key) {
+  const a = ACCENTS[key] || ACCENTS.coral;
+  const root = document.documentElement;
+  root.style.setProperty('--effort', a.main);
+  root.style.setProperty('--grad', a.grad);
 }
 
 /* ---------- routing ---------- */
@@ -200,6 +207,18 @@ document.addEventListener('click', async (ev) => {
       render();
       break;
     }
+    case 'set-theme': {
+      await st.patchSettings({ theme: t.dataset.theme });
+      applyTheme(t.dataset.theme);
+      render();
+      break;
+    }
+    case 'set-accent': {
+      await st.patchSettings({ accent: t.dataset.key });
+      applyAccent(t.dataset.key);
+      render();
+      break;
+    }
   }
 });
 
@@ -224,6 +243,15 @@ document.addEventListener('change', async (ev) => {
     case 'rename-day': await st.updateDay(id, { name: v.trim() || 'Giorno' }); render(); break;
     case 'day-muscles': await st.updateDay(id, { muscles: v.trim() }); break;
     case 'assign-weekday': await st.setWeekday(Number(t.dataset.wd), v || null); render(); break;
+
+    /* ---- profilo personale ---- */
+    case 'prof-name': await st.patchSettings({ profile: { ...(S.settings.profile || {}), name: v.trim() } }); break;
+    case 'prof-goal': await st.patchSettings({ profile: { ...(S.settings.profile || {}), goal: v } }); break;
+    case 'prof-height': {
+      const cm = parseInt(v, 10);
+      await st.patchSettings({ profile: { ...(S.settings.profile || {}), heightCm: isNaN(cm) ? null : cm } });
+      break;
+    }
   }
 });
 
@@ -240,6 +268,7 @@ window.addEventListener('hashchange', render);
   try {
     await st.boot();
     applyTheme(S.settings.theme || 'system');
+    applyAccent(S.settings.accent || 'coral');
     if (!location.hash) location.hash = '#/calendar';
     render();
     setInterval(tick, 1000);

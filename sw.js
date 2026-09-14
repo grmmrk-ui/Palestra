@@ -1,5 +1,5 @@
 // Palestra — service worker (offline app shell)
-const CACHE = 'palestra-v2';
+const CACHE = 'palestra-v3';
 const ASSETS = [
   './',
   './index.html',
