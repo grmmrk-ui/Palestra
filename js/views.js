@@ -230,16 +230,15 @@ export function renderExercise(id) {
     <span class="chip effort">${doneCount}/${sets.length} serie</span></div>
   <p class="muted" style="margin:-8px 2px 14px;font-size:13px">Obiettivo ${e.targetSets}×${e.targetReps}${e.targetWeight ? ` @ ${fmtNum(e.targetWeight)} kg` : ''} · recupero base ${e.restSec}s</p>
 
+  <div id="media-card" hidden style="margin-bottom:14px">
+    <div id="media-list" data-planned="${e.plannedId || ''}" data-readonly="1" data-hero="1"></div>
+  </div>
+
   <div class="card pad">
     <div class="setrow head"><span></span><span>Peso</span><span>Reps</span><span>Rec (s)</span><span></span></div>
     <div class="setgrid">${rows}</div>
   </div>
   <p class="muted" style="margin:10px 2px 0;font-size:12px">Usa il pulsantone in basso per farti guidare, oppure correggi i valori qui sopra a mano.</p>
-
-  <div class="card pad" id="media-card" hidden style="margin-top:14px">
-    <div class="sect" style="margin:0 0 10px">Riferimento</div>
-    <div id="media-list" class="media-grid" data-planned="${e.plannedId || ''}" data-readonly="1"></div>
-  </div>
 
   <div class="card pad" style="margin-top:14px">${noteField(e)}</div>`;
 }

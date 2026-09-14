@@ -179,6 +179,31 @@ function closeLightbox() {
   if (lightboxURL) { try { URL.revokeObjectURL(lightboxURL); } catch (e) {} lightboxURL = null; }
   document.body.style.overflow = '';
 }
+function makeMediaCell(m, big, deletable) {
+  const url = URL.createObjectURL(m.blob); mediaURLs.push(url);
+  const cell = document.createElement('div'); cell.className = big ? 'media-cell media-big' : 'media-cell';
+  if (m.type === 'video') {
+    const v = document.createElement('video'); v.src = url; v.muted = true; v.playsInline = true; v.preload = 'metadata';
+    cell.appendChild(v);
+    const badge = document.createElement('div'); badge.className = 'media-badge'; badge.textContent = '▶';
+    cell.appendChild(badge);
+  } else {
+    const img = document.createElement('img'); img.src = url; img.loading = 'lazy'; img.alt = m.name || 'foto';
+    cell.appendChild(img);
+  }
+  cell.addEventListener('click', (e) => {
+    if (e.target.closest('[data-action="del-media"]')) return; // il tasto elimina non apre lo zoom
+    openLightbox(m.type, m.blob);
+  });
+  if (deletable) {
+    const del = document.createElement('button');
+    del.className = 'media-del'; del.textContent = '✕';
+    del.dataset.action = 'del-media'; del.dataset.id = m.id;
+    cell.appendChild(del);
+  }
+  return cell;
+}
+
 async function hydrateMedia() {
   const host = document.getElementById('media-list');
   mediaURLs.forEach((u) => { try { URL.revokeObjectURL(u); } catch (e) {} });
@@ -186,37 +211,29 @@ async function hydrateMedia() {
   if (!host) return;
   const plannedId = host.dataset.planned;
   const readonly = host.dataset.readonly === '1';
+  const hero = host.dataset.hero === '1';
   const card = document.getElementById('media-card');
-  if (!plannedId) { if (card) card.hidden = true; return; }
+  if (!plannedId) { if (card) card.hidden = true; host.innerHTML = ''; return; }
   let items = [];
   try { items = await st.getMedia(plannedId); } catch (e) {}
   items.sort((a, b) => a.createdAt - b.createdAt);
-  if (readonly && card) card.hidden = items.length === 0;
+  if ((readonly || hero) && card) card.hidden = items.length === 0;
   host.innerHTML = '';
-  if (!items.length && !readonly) { host.innerHTML = '<div class="media-empty">Nessuna foto o video ancora.</div>'; return; }
-  for (const m of items) {
-    const url = URL.createObjectURL(m.blob); mediaURLs.push(url);
-    const cell = document.createElement('div'); cell.className = 'media-cell';
-    if (m.type === 'video') {
-      const v = document.createElement('video'); v.src = url; v.muted = true; v.playsInline = true; v.preload = 'metadata';
-      cell.appendChild(v);
-      const badge = document.createElement('div'); badge.className = 'media-badge'; badge.textContent = '▶';
-      cell.appendChild(badge);
-    } else {
-      const img = document.createElement('img'); img.src = url; img.loading = 'lazy'; img.alt = m.name || 'foto';
-      cell.appendChild(img);
+  if (!items.length) {
+    if (!readonly) host.innerHTML = '<div class="media-empty">Nessuna foto o video ancora.</div>';
+    return;
+  }
+  if (hero) {
+    // prima foto/video in grande, le altre in miniatura sotto
+    host.appendChild(makeMediaCell(items[0], true, false));
+    if (items.length > 1) {
+      const grid = document.createElement('div'); grid.className = 'media-grid'; grid.style.marginTop = '8px';
+      for (const m of items.slice(1)) grid.appendChild(makeMediaCell(m, false, false));
+      host.appendChild(grid);
     }
-    cell.addEventListener('click', (e) => {
-      if (e.target.closest('[data-action="del-media"]')) return; // il tasto elimina non apre lo zoom
-      openLightbox(m.type, m.blob);
-    });
-    if (!readonly) {
-      const del = document.createElement('button');
-      del.className = 'media-del'; del.textContent = '✕';
-      del.dataset.action = 'del-media'; del.dataset.id = m.id;
-      cell.appendChild(del);
-    }
-    host.appendChild(cell);
+  } else {
+    host.className = 'media-grid';
+    for (const m of items) host.appendChild(makeMediaCell(m, false, !readonly));
   }
 }
 

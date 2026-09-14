@@ -42,7 +42,7 @@ export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // App version — bump on each notable release; shown in Profilo and in feedback.
-export const APP_VERSION = '1.3.2 beta';
+export const APP_VERSION = '1.4 beta';
 export const FEEDBACK_EMAIL = 'grmmrk@gmail.com';
 
 // Accent presets — swap the app's primary color.
