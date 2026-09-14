@@ -196,11 +196,17 @@ a{color:inherit;text-decoration:none}
 /* media (foto/video esercizio) */
 .media-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .media-grid:empty{display:none}
-.media-cell{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--paper);border:1px solid var(--line)}
+.media-cell{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--paper);border:1px solid var(--line);cursor:pointer}
 .media-cell img,.media-cell video{width:100%;height:100%;object-fit:cover;display:block}
 .media-del{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:8px;border:0;
   background:rgba(18,24,31,.72);color:#fff;font-size:13px;display:grid;place-items:center;line-height:1}
 .media-empty{color:var(--faint);font-size:13px;padding:6px 2px;grid-column:1/-1}
+.media-badge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;
+  background:rgba(18,24,31,.6);color:#fff;display:grid;place-items:center;font-size:15px;pointer-events:none}
+.lightbox{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.93);display:flex;align-items:center;justify-content:center;padding:14px}
+.lightbox .lb-media{max-width:100%;max-height:100%;border-radius:10px;object-fit:contain}
+.lightbox .lb-close{position:absolute;top:calc(12px + var(--sat));right:16px;width:42px;height:42px;border-radius:50%;
+  border:0;background:rgba(255,255,255,.16);color:#fff;font-size:19px}
 label.filebtn{display:block;text-align:center;cursor:pointer}
 
 /* workout HUD (guided mode) */

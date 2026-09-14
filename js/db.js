@@ -33,7 +33,14 @@ export function open() {
         }
       }
     };
-    req.onsuccess = () => { _db = req.result; resolve(_db); };
+    // Un'altra connessione (es. una vecchia scheda) blocca l'upgrade.
+    req.onblocked = () => { /* si sblocca quando le altre connessioni si chiudono via onversionchange */ };
+    req.onsuccess = () => {
+      _db = req.result;
+      // Se un'altra scheda avvia un upgrade, chiudi subito per non bloccarla.
+      _db.onversionchange = () => { try { _db.close(); } catch (e) {} _db = null; };
+      resolve(_db);
+    };
     req.onerror = () => reject(req.error);
   });
 }

@@ -1,5 +1,5 @@
 // Palestra — service worker (offline app shell)
-const CACHE = 'palestra-v14';
+const CACHE = 'palestra-v16';
 const ASSETS = [
   './',
   './index.html',
@@ -34,10 +34,17 @@ self.addEventListener('activate', (e) => {
 const WTAG = 'palestra-workout';
 const TRIGGER_OK = 'showTrigger' in Notification.prototype && 'TimestampTrigger' in self;
 
+let _swDB = null;
 function openDB() {
+  if (_swDB) return Promise.resolve(_swDB);
   return new Promise((res, rej) => {
     const r = indexedDB.open('palestra');
-    r.onsuccess = () => res(r.result);
+    r.onsuccess = () => {
+      _swDB = r.result;
+      // Non bloccare gli upgrade del DB avviati dall'app: chiudi su versionchange.
+      _swDB.onversionchange = () => { try { _swDB.close(); } catch (e) {} _swDB = null; };
+      res(_swDB);
+    };
     r.onerror = () => rej(r.error);
   });
 }

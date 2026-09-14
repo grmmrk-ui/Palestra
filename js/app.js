@@ -155,6 +155,30 @@ function render() {
 
 /* ---------- media (foto/video esercizio) ---------- */
 let mediaURLs = [];
+let lightboxURL = null;
+function openLightbox(type, blob) {
+  let ov = document.getElementById('lightbox');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'lightbox'; ov.className = 'lightbox';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', (e) => {
+      if (e.target === ov || e.target.classList.contains('lb-close')) closeLightbox();
+    });
+  }
+  if (lightboxURL) { try { URL.revokeObjectURL(lightboxURL); } catch (e) {} }
+  lightboxURL = URL.createObjectURL(blob);
+  ov.innerHTML = `<button class="lb-close" aria-label="Chiudi">✕</button>` + (type === 'video'
+    ? `<video src="${lightboxURL}" controls autoplay playsinline class="lb-media"></video>`
+    : `<img src="${lightboxURL}" class="lb-media" alt="">`);
+  ov.hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  const ov = document.getElementById('lightbox');
+  if (ov) { ov.hidden = true; ov.innerHTML = ''; }
+  if (lightboxURL) { try { URL.revokeObjectURL(lightboxURL); } catch (e) {} lightboxURL = null; }
+  document.body.style.overflow = '';
+}
 async function hydrateMedia() {
   const host = document.getElementById('media-list');
   mediaURLs.forEach((u) => { try { URL.revokeObjectURL(u); } catch (e) {} });
@@ -173,10 +197,19 @@ async function hydrateMedia() {
   for (const m of items) {
     const url = URL.createObjectURL(m.blob); mediaURLs.push(url);
     const cell = document.createElement('div'); cell.className = 'media-cell';
-    let el;
-    if (m.type === 'video') { el = document.createElement('video'); el.src = url; el.controls = true; el.playsInline = true; }
-    else { el = document.createElement('img'); el.src = url; el.loading = 'lazy'; el.alt = m.name || 'foto'; }
-    cell.appendChild(el);
+    if (m.type === 'video') {
+      const v = document.createElement('video'); v.src = url; v.muted = true; v.playsInline = true; v.preload = 'metadata';
+      cell.appendChild(v);
+      const badge = document.createElement('div'); badge.className = 'media-badge'; badge.textContent = '▶';
+      cell.appendChild(badge);
+    } else {
+      const img = document.createElement('img'); img.src = url; img.loading = 'lazy'; img.alt = m.name || 'foto';
+      cell.appendChild(img);
+    }
+    cell.addEventListener('click', (e) => {
+      if (e.target.closest('[data-action="del-media"]')) return; // il tasto elimina non apre lo zoom
+      openLightbox(m.type, m.blob);
+    });
     if (!readonly) {
       const del = document.createElement('button');
       del.className = 'media-del'; del.textContent = '✕';
