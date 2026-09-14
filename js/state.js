@@ -163,6 +163,85 @@ export async function patchSettings(patch) {
   await db.put('settings', S.settings);
 }
 
+/* ---- program / schede editor ---- */
+export async function renameProgram(name) {
+  const p = activeProgram();
+  p.name = name;
+  await db.put('programs', p);
+}
+
+export async function setWeekday(weekdayIdx, dayId) {
+  const p = activeProgram();
+  p.weekdayPlan = { ...(p.weekdayPlan || {}), [weekdayIdx]: dayId || null };
+  await db.put('programs', p);
+}
+
+export async function addDay(name, muscles) {
+  const day = { id: uid(), programId: activeProgram().id, name: name || 'Nuovo giorno', muscles: muscles || '' };
+  S.days.push(day);
+  await db.put('days', day);
+  return day;
+}
+
+export async function updateDay(id, patch) {
+  const d = dayById(id);
+  if (!d) return;
+  Object.assign(d, patch);
+  await db.put('days', d);
+}
+
+export async function deleteDay(id) {
+  // remove planned of this day
+  const kids = S.planned.filter((p) => p.dayId === id);
+  for (const k of kids) await db.del('planned', k.id);
+  S.planned = S.planned.filter((p) => p.dayId !== id);
+  // clear weekday assignments
+  const prog = activeProgram();
+  let changed = false;
+  for (const [wd, did] of Object.entries(prog.weekdayPlan || {})) {
+    if (did === id) { prog.weekdayPlan[wd] = null; changed = true; }
+  }
+  if (changed) await db.put('programs', prog);
+  S.days = S.days.filter((d) => d.id !== id);
+  await db.del('days', id);
+}
+
+export async function addPlanned(dayId, data) {
+  const orders = plannedForDay(dayId).map((p) => p.order);
+  const order = orders.length ? Math.max(...orders) + 1 : 0;
+  const p = { id: uid(), dayId, order, kind: 'strength',
+    name: '', muscle: '', targetSets: 3, targetReps: 10, targetWeight: 0, restSec: 90, targetDurationSec: 0,
+    ...data };
+  S.planned.push(p);
+  await db.put('planned', p);
+  return p;
+}
+
+export async function updatePlanned(id, patch) {
+  const p = S.planned.find((x) => x.id === id);
+  if (!p) return;
+  Object.assign(p, patch);
+  await db.put('planned', p);
+}
+
+export async function deletePlanned(id) {
+  S.planned = S.planned.filter((p) => p.id !== id);
+  await db.del('planned', id);
+}
+
+export async function movePlanned(id, dir) {
+  const p = S.planned.find((x) => x.id === id);
+  if (!p) return;
+  const sibs = plannedForDay(p.dayId);
+  const i = sibs.findIndex((x) => x.id === id);
+  const j = i + dir;
+  if (j < 0 || j >= sibs.length) return;
+  const other = sibs[j];
+  const tmp = p.order; p.order = other.order; other.order = tmp;
+  await db.put('planned', p);
+  await db.put('planned', other);
+}
+
 /* ---- stats ---- */
 export function streak() {
   const today = isoDate();

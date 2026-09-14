@@ -25,8 +25,8 @@ async function cycleTheme() {
 /* ---------- routing ---------- */
 function route() {
   const h = location.hash.replace(/^#\/?/, '');
-  const [base, arg] = h.split('/');
-  return { base: base || 'calendar', arg };
+  const parts = h.split('/');
+  return { base: parts[0] || 'calendar', args: parts.slice(1) };
 }
 
 const TABS = [
@@ -44,7 +44,7 @@ function renderTabs(active) {
 }
 
 function render() {
-  const { base, arg } = route();
+  const { base, args } = route();
   let html = '';
   let activeTab = base;
   switch (base) {
@@ -52,8 +52,11 @@ function render() {
     case 'today': html = V.renderToday(); break;
     case 'weight': html = V.renderWeight(); break;
     case 'profile': html = V.renderProfile(); break;
-    case 'session': html = V.renderSession(arg); activeTab = 'calendar'; break;
-    case 'exercise': html = V.renderExercise(arg); activeTab = ''; break;
+    case 'session': html = V.renderSession(args[0]); activeTab = 'calendar'; break;
+    case 'exercise': html = V.renderExercise(args[0]); activeTab = ''; break;
+    case 'edit': html = V.renderEditProgram(); activeTab = 'profile'; break;
+    case 'edit-day': html = V.renderEditDay(args[0]); activeTab = 'profile'; break;
+    case 'edit-ex': html = V.renderEditExercise(args[0], args[1]); activeTab = 'profile'; break;
     default: location.hash = '#/calendar'; return;
   }
   app.innerHTML = html;
@@ -154,6 +157,44 @@ document.addEventListener('click', async (ev) => {
       break;
     }
     case 'del-weight': await st.deleteBodyweight(id); render(); break;
+
+    /* ---- editor scheda ---- */
+    case 'add-day': {
+      const d = await st.addDay('Nuovo giorno', '');
+      location.hash = `#/edit-day/${d.id}`;
+      break;
+    }
+    case 'del-day': {
+      if (confirm('Eliminare questo giorno e i suoi esercizi?')) { await st.deleteDay(id); render(); }
+      break;
+    }
+    case 'add-ex': location.hash = `#/edit-ex/${id}/new`; break;
+    case 'ex-up': await st.movePlanned(id, -1); render(); break;
+    case 'ex-down': await st.movePlanned(id, +1); render(); break;
+    case 'del-ex': if (confirm('Eliminare l\'esercizio?')) { await st.deletePlanned(id); render(); } break;
+    case 'del-ex-back': {
+      if (confirm('Eliminare l\'esercizio?')) { await st.deletePlanned(id); location.hash = `#/edit-day/${t.dataset.day}`; }
+      break;
+    }
+    case 'save-ex': {
+      const val = (i) => (document.getElementById(i)?.value ?? '').trim();
+      const int = (i, d) => { const n = parseInt(val(i), 10); return isNaN(n) ? d : n; };
+      const kind = document.querySelector('input[name="ex-kind"]:checked')?.value || 'strength';
+      const data = { name: val('ex-name'), muscle: val('ex-muscle'), kind, restSec: int('ex-rest', 90) };
+      if (!data.name) { toast('Dai un nome all\'esercizio'); break; }
+      if (kind === 'cardio') {
+        data.targetDurationSec = int('ex-dur', 10) * 60; data.targetSets = 1; data.targetReps = 0; data.targetWeight = 0;
+      } else {
+        data.targetSets = int('ex-sets', 3); data.targetReps = int('ex-reps', 10);
+        data.targetWeight = num(val('ex-weight')) ?? 0; data.targetDurationSec = 0;
+      }
+      const day = t.dataset.day;
+      if (t.dataset.id === 'new') await st.addPlanned(day, data);
+      else await st.updatePlanned(t.dataset.id, data);
+      toast('Salvato ✓');
+      location.hash = `#/edit-day/${day}`;
+      break;
+    }
     case 'toggle-weighin': {
       await st.patchSettings({ weighIn: { ...S.settings.weighIn, enabled: !S.settings.weighIn.enabled } });
       render();
@@ -177,6 +218,12 @@ document.addEventListener('change', async (ev) => {
       await st.patchSettings({ weighIn: { ...S.settings.weighIn, weekday: Number(v) } });
       render();
       break;
+
+    /* ---- editor scheda ---- */
+    case 'rename-program': await st.renameProgram(v.trim() || 'Programma'); break;
+    case 'rename-day': await st.updateDay(id, { name: v.trim() || 'Giorno' }); render(); break;
+    case 'day-muscles': await st.updateDay(id, { muscles: v.trim() }); break;
+    case 'assign-weekday': await st.setWeekday(Number(t.dataset.wd), v || null); render(); break;
   }
 });
 

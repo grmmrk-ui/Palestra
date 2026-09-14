@@ -142,6 +142,9 @@ a{color:inherit;text-decoration:none}
 .field input,.field select,.field textarea{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:11px;padding:12px 13px;font:inherit;font-size:15px}
 .field textarea{min-height:70px;resize:vertical}
 .inline{display:flex;gap:10px}.inline>*{flex:1}
+.grp-cardio{display:none}
+.exform:has(input[name="ex-kind"][value="cardio"]:checked) .grp-strength{display:none}
+.exform:has(input[name="ex-kind"][value="cardio"]:checked) .grp-cardio{display:block}
 
 /* rpe bars */
 .rpe{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-weight:500;margin-top:4px}

@@ -340,6 +340,7 @@ export function renderProfile() {
 
   <div class="banner"><div class="lab">Programma attivo</div><div class="nm">${esc(prog.name)}</div>
     <div class="meta"><span>${days.length} giorni · split settimanale</span></div></div>
+  <a class="btn" href="#/edit" style="margin-top:12px;display:block;text-align:center">Modifica scheda</a>
 
   <div class="sect">Settimana tipo</div>
   <div class="card pad" style="padding-top:2px;padding-bottom:2px">${week}</div>
@@ -358,6 +359,130 @@ export function renderProfile() {
 function themeLabel() {
   const t = document.documentElement.getAttribute('data-theme');
   return t === 'dark' ? 'Scuro' : t === 'light' ? 'Chiaro' : 'Sistema';
+}
+
+/* ---------------- Editor: programma ---------------- */
+export function renderEditProgram() {
+  const prog = st.activeProgram();
+  const days = st.S.days.filter((d) => d.programId === prog.id);
+  const wd = prog.weekdayPlan || {};
+
+  const dayCards = days.map((d) => {
+    const n = st.plannedForDay(d.id).length;
+    return `<div class="row spread" style="padding:12px 4px;border-bottom:1px solid var(--line)">
+      <a href="#/edit-day/${d.id}" style="flex:1">
+        <div style="font-weight:600">${esc(d.name)}</div>
+        <div class="muted" style="font-size:12px">${esc(d.muscles || '—')} · ${n} esercizi</div></a>
+      <a class="btn-sm btn ghost" href="#/edit-day/${d.id}" style="margin-right:8px">Modifica</a>
+      <button class="iconbtn" data-action="del-day" data-id="${d.id}" aria-label="Elimina giorno">✕</button>
+    </div>`;
+  }).join('') || `<p class="muted" style="padding:12px 4px">Nessun giorno. Aggiungine uno.</p>`;
+
+  const dayOpts = (sel) => `<option value="">Riposo</option>` +
+    days.map((d) => `<option value="${d.id}" ${d.id === sel ? 'selected' : ''}>${esc(d.name)}</option>`).join('');
+  const week = WD.map((label, i) => `<div class="row spread" style="padding:9px 4px;border-bottom:1px solid var(--line)">
+    <span class="chip ${wd[i] ? 'effort' : 'rest'}" style="width:44px;text-align:center">${label}</span>
+    <select data-action="assign-weekday" data-wd="${i}" style="flex:1;max-width:220px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:9px 10px;font:inherit;font-size:14px">${dayOpts(wd[i] ?? '')}</select>
+  </div>`).join('');
+
+  return `
+  <button class="backbtn" data-action="go" data-href="#/profile">‹ Profilo</button>
+  <div class="screen-head"><div><div class="kick">Editor</div><h1>Modifica scheda</h1></div></div>
+
+  <div class="field"><label>Nome programma</label>
+    <input type="text" value="${esc(prog.name)}" data-action="rename-program"></div>
+
+  <div class="sect">Giorni di allenamento</div>
+  <div class="card pad" style="padding-top:2px;padding-bottom:2px">${dayCards}</div>
+  <button class="btn ghost" data-action="add-day" style="margin-top:12px">+ Aggiungi giorno</button>
+
+  <div class="sect">Assegna alla settimana</div>
+  <div class="card pad" style="padding-top:2px;padding-bottom:2px">${week}</div>
+  <p class="muted" style="font-size:12px;margin-top:10px">Il calendario e la schermata "Oggi" seguono questa assegnazione.</p>
+  `;
+}
+
+/* ---------------- Editor: giorno ---------------- */
+export function renderEditDay(dayId) {
+  const d = st.dayById(dayId);
+  if (!d) return `<div class="empty-state">Giorno non trovato.</div>`;
+  const exs = st.plannedForDay(dayId);
+  const rows = exs.map((p, i) => {
+    const label = p.kind === 'cardio' ? `${Math.round((p.targetDurationSec || 0) / 60)} min`
+      : `${p.targetSets}×${p.targetReps}${p.targetWeight ? ` · ${fmtNum(p.targetWeight)}kg` : ''}`;
+    return `<div class="row" style="gap:8px;padding:11px 4px;border-bottom:1px solid var(--line)">
+      <div class="stack" style="gap:2px">
+        <button class="iconbtn" style="width:26px;height:22px;font-size:12px" data-action="ex-up" data-id="${p.id}" ${i === 0 ? 'disabled' : ''} aria-label="Su">▲</button>
+        <button class="iconbtn" style="width:26px;height:22px;font-size:12px" data-action="ex-down" data-id="${p.id}" ${i === exs.length - 1 ? 'disabled' : ''} aria-label="Giù">▼</button>
+      </div>
+      <a href="#/edit-ex/${dayId}/${p.id}" style="flex:1">
+        <div style="font-weight:600">${esc(p.name) || '(senza nome)'} ${p.kind === 'cardio' ? '<span class="chip rest" style="padding:2px 7px">cardio</span>' : ''}</div>
+        <div class="muted" style="font-size:12px">${esc(p.muscle || '—')} · ${label} · riposo ${p.restSec}s</div></a>
+      <button class="iconbtn" data-action="del-ex" data-id="${p.id}" aria-label="Elimina">✕</button>
+    </div>`;
+  }).join('') || `<p class="muted" style="padding:12px 4px">Nessun esercizio ancora.</p>`;
+
+  return `
+  <button class="backbtn" data-action="go" data-href="#/edit">‹ Scheda</button>
+  <div class="screen-head"><div><div class="kick">Giorno</div><h1 style="font-size:30px">${esc(d.name)}</h1></div></div>
+
+  <div class="inline">
+    <div class="field"><label>Nome giorno</label>
+      <input type="text" value="${esc(d.name)}" data-action="rename-day" data-id="${dayId}"></div>
+  </div>
+  <div class="field"><label>Gruppi muscolari</label>
+    <input type="text" value="${esc(d.muscles || '')}" data-action="day-muscles" data-id="${dayId}" placeholder="es. Petto · Spalle · Tricipiti"></div>
+
+  <div class="sect">Esercizi</div>
+  <div class="card pad" style="padding-top:2px;padding-bottom:2px">${rows}</div>
+  <button class="btn" data-action="add-ex" data-id="${dayId}" style="margin-top:12px">+ Aggiungi esercizio</button>
+  `;
+}
+
+/* ---------------- Editor: esercizio ---------------- */
+export function renderEditExercise(dayId, pid) {
+  const isNew = pid === 'new';
+  const p = isNew
+    ? { name: '', muscle: '', kind: 'strength', targetSets: 3, targetReps: 10, targetWeight: 0, restSec: 90, targetDurationSec: 600 }
+    : st.S.planned.find((x) => x.id === pid);
+  if (!p) return `<div class="empty-state">Esercizio non trovato.</div>`;
+  const isCardio = p.kind === 'cardio';
+
+  return `
+  <button class="backbtn" data-action="go" data-href="#/edit-day/${dayId}">‹ Esercizi</button>
+  <div class="screen-head"><div><div class="kick">${isNew ? 'Nuovo' : 'Modifica'}</div><h1 style="font-size:30px">Esercizio</h1></div></div>
+
+  <form class="exform" onsubmit="return false">
+    <div class="field"><label>Nome</label>
+      <input type="text" id="ex-name" value="${esc(p.name)}" placeholder="es. Panca piana bilanciere" autofocus></div>
+    <div class="field"><label>Gruppo muscolare</label>
+      <input type="text" id="ex-muscle" value="${esc(p.muscle)}" placeholder="es. Petto"></div>
+
+    <div class="field"><label>Tipo</label>
+      <div class="row" style="gap:16px">
+        <label class="row" style="gap:6px"><input type="radio" name="ex-kind" value="strength" ${!isCardio ? 'checked' : ''}> Forza</label>
+        <label class="row" style="gap:6px"><input type="radio" name="ex-kind" value="cardio" ${isCardio ? 'checked' : ''}> Cardio</label>
+      </div>
+    </div>
+
+    <div class="grp-strength">
+      <div class="inline">
+        <div class="field"><label>Serie</label><input type="number" id="ex-sets" inputmode="numeric" value="${p.targetSets ?? 3}"></div>
+        <div class="field"><label>Ripetizioni</label><input type="number" id="ex-reps" inputmode="numeric" value="${p.targetReps ?? 10}"></div>
+      </div>
+      <div class="field"><label>Peso obiettivo (kg)</label><input type="number" id="ex-weight" inputmode="decimal" value="${p.targetWeight ?? 0}"></div>
+    </div>
+
+    <div class="grp-cardio">
+      <div class="field"><label>Durata (min)</label><input type="number" id="ex-dur" inputmode="numeric" value="${Math.round((p.targetDurationSec || 600) / 60)}"></div>
+    </div>
+
+    <div class="field"><label>Riposo (secondi)</label><input type="number" id="ex-rest" inputmode="numeric" value="${p.restSec ?? 90}"></div>
+  </form>
+
+  <button class="btn" data-action="save-ex" data-day="${dayId}" data-id="${isNew ? 'new' : p.id}" style="margin-top:6px">${isNew ? 'Aggiungi' : 'Salva'}</button>
+  ${isNew ? '' : `<button class="btn ghost" data-action="del-ex-back" data-id="${p.id}" data-day="${dayId}" style="margin-top:10px">Elimina esercizio</button>`}
+  `;
 }
 
 /* ---------------- shared bits ---------------- */
