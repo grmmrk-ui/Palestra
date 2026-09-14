@@ -1,5 +1,5 @@
 // Palestra — service worker (offline app shell)
-const CACHE = 'palestra-v18';
+const CACHE = 'palestra-v19';
 const ASSETS = [
   './',
   './index.html',
@@ -11,7 +11,9 @@ const ASSETS = [
   './js/seed.js',
   './js/state.js',
   './js/util.js',
-  './js/views.js'
+  './js/views.js',
+  './js/config.js',
+  './js/push.js'
 ];
 
 self.addEventListener('install', (e) => {
@@ -161,6 +163,18 @@ self.addEventListener('notificationclick', (e) => {
     for (const c of cls) { if ('focus' in c) { try { await c.navigate(c.url); } catch (_) {} return c.focus(); } }
     if (self.clients.openWindow) return self.clients.openWindow('./');
   })());
+});
+
+// Push dal server (arriva anche a schermo bloccato) → mostra la notifica.
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) {}
+  e.waitUntil(self.registration.showNotification(d.title || 'Recupero finito 💪', {
+    tag: WTAG, body: d.body || '', requireInteraction: true, vibrate: [200, 100, 200],
+    icon: './icons/icon-192.png', badge: './icons/icon-192.png',
+    actions: [{ action: d.action || 'next', title: d.actionTitle || '▶ Prossima serie' }],
+    data: { workout: true },
+  }));
 });
 
 self.addEventListener('message', (e) => {

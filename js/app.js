@@ -2,6 +2,7 @@ import * as st from './state.js';
 import { S } from './state.js';
 import * as V from './views.js';
 import { isoDate, fmtDuration, toast, parseISO, ACCENTS } from './util.js';
+import { pushConfigured, ensurePushSubscription, schedulePush } from './push.js';
 
 const app = document.getElementById('app');
 const tabbar = document.getElementById('tabbar');
@@ -306,7 +307,10 @@ async function advanceWorkout() {
     const remaining = st.setsOfLogEx(e.id).filter((s) => !s.done);
     if (remaining.length) {
       const sec = cur.restSec ?? e.restSec;
-      if (sec) restState = { endsAt: Date.now() + sec * 1000 };
+      if (sec) {
+        restState = { endsAt: Date.now() + sec * 1000 };
+        if (notifyEnabled()) schedulePush(sec, { title: 'Recupero finito 💪', body: `Inizia la serie ${remaining[0].index} · ${e.name}`, action: 'next', actionTitle: '▶ Prossima serie' });
+      }
     }
     render();
     return;
@@ -406,7 +410,13 @@ document.addEventListener('click', async (ev) => {
       if (nowDone && set.kind !== 'cardio') {
         const le = st.logExById(set.logExerciseId);
         const sec = set.restSec ?? (le && le.restSec);
-        if (sec) restState = { endsAt: Date.now() + sec * 1000 };
+        if (sec) {
+          restState = { endsAt: Date.now() + sec * 1000 };
+          if (notifyEnabled()) {
+            const nxt = st.setsOfLogEx(le.id).find((s) => !s.done);
+            schedulePush(sec, { title: 'Recupero finito 💪', body: nxt ? `Inizia la serie ${nxt.index} · ${le.name}` : 'Passa al prossimo esercizio', action: 'next', actionTitle: '▶ Prossima serie' });
+          }
+        }
       }
       render();
       break;
@@ -468,7 +478,8 @@ document.addEventListener('click', async (ev) => {
         if (perm === 'default') perm = await Notification.requestPermission();
         if (perm !== 'granted') { toast('Permesso notifiche negato'); break; }
         await st.patchSettings({ workout: { ...(S.settings.workout || {}), notify: true } });
-        toast(triggerSupported ? 'Notifiche recupero attive' : 'Attive, ma questo browser non le programma da bloccato');
+        if (pushConfigured()) { ensurePushSubscription(); toast('Notifiche attive · push da schermo bloccato'); }
+        else toast(triggerSupported ? 'Notifiche attive' : 'Attive; per il blocco schermo serve il push server');
       } else {
         await st.patchSettings({ workout: { ...(S.settings.workout || {}), notify: false } });
         clearRestNotification();
@@ -607,6 +618,7 @@ window.addEventListener('hashchange', render);
     await st.boot();
     applyTheme(S.settings.theme || 'system');
     applyAccent(S.settings.accent || 'coral');
+    if (notifyEnabled() && pushConfigured()) ensurePushSubscription();
     if (!location.hash) location.hash = '#/calendar';
     render();
     setInterval(tick, 1000);
