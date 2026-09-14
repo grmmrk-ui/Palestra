@@ -145,7 +145,8 @@ document.addEventListener('click', async (ev) => {
       await st.patchSet(id, { done: nowDone });
       if (nowDone && set.kind !== 'cardio') {
         const le = st.logExById(set.logExerciseId);
-        if (le && le.restSec) restState = { endsAt: Date.now() + le.restSec * 1000 };
+        const sec = set.restSec ?? (le && le.restSec);
+        if (sec) restState = { endsAt: Date.now() + sec * 1000 };
       }
       render();
       break;
@@ -230,6 +231,7 @@ document.addEventListener('change', async (ev) => {
   switch (a) {
     case 'set-weight': await ensureStarted(id); await st.patchSet(id, { weight: num(v) }); break;
     case 'set-reps': await ensureStarted(id); await st.patchSet(id, { reps: num(v) }); break;
+    case 'set-rest': { const n = parseInt(v, 10); await st.patchSet(id, { restSec: isNaN(n) ? null : n }); break; }
     case 'cardio-min': await ensureStarted(id); await st.patchSet(id, { durationSec: (num(v) || 0) * 60 }); break;
     case 'cardio-dist': await st.patchSet(id, { distance: num(v) }); break;
     case 'ex-note': await st.patchLogEx(id, { note: v }); break;

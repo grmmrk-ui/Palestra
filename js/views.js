@@ -216,21 +216,23 @@ export function renderExercise(id) {
       <div class="idx">${x.index}</div>
       <input type="number" inputmode="decimal" value="${x.weight ?? ''}" data-action="set-weight" data-id="${x.id}" aria-label="Peso serie ${x.index}">
       <input type="number" inputmode="numeric" value="${x.reps ?? ''}" data-action="set-reps" data-id="${x.id}" aria-label="Ripetizioni serie ${x.index}">
+      <input type="number" inputmode="numeric" value="${x.restSec ?? ''}" data-action="set-rest" data-id="${x.id}" aria-label="Recupero serie ${x.index}">
       <button class="mark" data-action="toggle-set" data-id="${x.id}" aria-label="Completa serie ${x.index}">${x.done ? '✓' : '○'}</button>
     </div>`).join('');
 
   return `${back}
   <div class="screen-head"><div><div class="kick">${esc(e.muscle)}</div><h1 style="font-size:28px">${esc(e.name)}</h1></div>
     <span class="chip effort">${doneCount}/${sets.length} serie</span></div>
-  <p class="muted" style="margin:-8px 2px 14px;font-size:13px">Obiettivo ${e.targetSets}×${e.targetReps}${e.targetWeight ? ` @ ${fmtNum(e.targetWeight)} kg` : ''} · riposo ${e.restSec}s</p>
+  <p class="muted" style="margin:-8px 2px 14px;font-size:13px">Obiettivo ${e.targetSets}×${e.targetReps}${e.targetWeight ? ` @ ${fmtNum(e.targetWeight)} kg` : ''} · recupero base ${e.restSec}s</p>
 
   <div class="card pad">
-    <div class="setrow head"><span></span><span>Peso (kg)</span><span>Reps</span><span></span></div>
+    <div class="setrow head"><span></span><span>Peso</span><span>Reps</span><span>Rec (s)</span><span></span></div>
     <div class="setgrid">${rows}</div>
   </div>
+  <p class="muted" style="margin:10px 2px 0;font-size:12px">Il timer di recupero parte da solo quando completi una serie, con il valore <b>Rec</b> di quella serie.</p>
 
   <div class="timer" style="margin-top:14px">
-    <div><div class="rest-lab">Riposo</div><div class="faint" style="font-size:11px;color:#AEB8C4">obiettivo ${e.restSec}s</div></div>
+    <div><div class="rest-lab">Recupero</div><div class="faint" style="font-size:11px;color:#AEB8C4" data-rest-status>tocca ✓ su una serie</div></div>
     <div class="clock tnum" data-rest>${fmtDuration(e.restSec)}</div>
     <button class="btn-sm btn dark" data-action="rest-start" data-sec="${e.restSec}" style="margin-left:12px">Avvia</button>
   </div>

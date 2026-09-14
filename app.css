@@ -125,13 +125,13 @@ a{color:inherit;text-decoration:none}
 
 /* set rows (exercise detail) */
 .setgrid{width:100%}
-.setrow{display:grid;grid-template-columns:30px 1fr 1fr 46px;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.setrow{display:grid;grid-template-columns:24px 1fr 1fr 1fr 38px;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--line)}
 .setrow.head span{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
-.setrow .idx{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-family:"Barlow Condensed";font-weight:700;font-size:14px;background:var(--paper);color:var(--muted)}
+.setrow .idx{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-family:"Barlow Condensed";font-weight:700;font-size:13px;background:var(--paper);color:var(--muted)}
 .setrow.done .idx{background:var(--rest);color:#fff}
 .setrow.now .idx{background:var(--effort);color:#fff}
-.setrow input{width:100%;border:1px solid var(--line);background:var(--paper);color:var(--text);border-radius:9px;padding:9px 10px;
-  font-family:"Barlow Condensed";font-weight:700;font-size:17px;text-align:center;-moz-appearance:textfield}
+.setrow input{width:100%;min-width:0;border:1px solid var(--line);background:var(--paper);color:var(--text);border-radius:9px;padding:9px 4px;
+  font-family:"Barlow Condensed";font-weight:700;font-size:16px;text-align:center;-moz-appearance:textfield}
 .setrow input::-webkit-outer-spin-button,.setrow input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .setrow .mark{justify-self:end;width:38px;height:38px;border-radius:10px;border:2px solid var(--line);background:var(--card);color:var(--faint);font-size:16px;display:grid;place-items:center}
 .setrow.done .mark{background:var(--rest);border-color:var(--rest);color:#fff}
