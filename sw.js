@@ -1,5 +1,5 @@
 // Palestra — service worker (offline app shell)
-const CACHE = 'palestra-v8';
+const CACHE = 'palestra-v9';
 const ASSETS = [
   './',
   './index.html',
@@ -24,6 +24,18 @@ self.addEventListener('activate', (e) => {
       Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
+});
+
+// Tap sulla notifica → porta in primo piano l'app (o la apre)
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of all) {
+      if ('focus' in c) { try { await c.navigate(c.url); } catch (_) {} return c.focus(); }
+    }
+    if (self.clients.openWindow) return self.clients.openWindow('./');
+  })());
 });
 
 self.addEventListener('fetch', (e) => {

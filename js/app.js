@@ -72,6 +72,44 @@ function beep() {
     o2.start(audioCtx.currentTime + 0.2); o2.stop(audioCtx.currentTime + 0.4);
   } catch (e) {}
 }
+/* ---------- notifica recupero (Notification Triggers, senza server) ---------- */
+const triggerSupported = typeof window !== 'undefined' && 'Notification' in window
+  && window.Notification.prototype && 'showTrigger' in window.Notification.prototype
+  && 'TimestampTrigger' in window;
+
+function notifyEnabled() {
+  return (S.settings.workout || {}).notify === true
+    && 'Notification' in window && Notification.permission === 'granted';
+}
+async function swReg() {
+  try { return await navigator.serviceWorker?.ready; } catch (e) { return null; }
+}
+async function clearRestNotification() {
+  const reg = await swReg();
+  if (!reg) return;
+  try {
+    const ns = await reg.getNotifications({ tag: 'palestra-rest', includeTriggered: true });
+    ns.forEach((n) => n.close());
+  } catch (e) {}
+}
+async function scheduleRestNotification(endsAt, label) {
+  if (!notifyEnabled() || !triggerSupported) return;
+  const reg = await swReg();
+  if (!reg) return;
+  try {
+    await clearRestNotification();
+    await reg.showNotification('Recupero finito 💪', {
+      tag: 'palestra-rest', body: label, requireInteraction: true,
+      vibrate: [200, 100, 200], icon: './icons/icon-192.png', badge: './icons/icon-192.png',
+      showTrigger: new TimestampTrigger(endsAt), data: { type: 'rest' },
+    });
+  } catch (e) {}
+}
+function startRest(sec, label) {
+  restState = { endsAt: Date.now() + sec * 1000 };
+  scheduleRestNotification(restState.endsAt, label);
+}
+
 /* ---------- routing ---------- */
 function route() {
   const h = location.hash.replace(/^#\/?/, '');
@@ -175,7 +213,7 @@ async function advanceWorkout() {
   const e = currentExercise();
   if (!e) return;
   ensureAudio();
-  if (restState) { restState = null; render(); return; }
+  if (restState) { restState = null; clearRestNotification(); render(); return; }
   const sets = st.setsOfLogEx(e.id);
   const cur = sets.find((s) => !s.done);
   if (cur) {
@@ -184,7 +222,7 @@ async function advanceWorkout() {
     const remaining = st.setsOfLogEx(e.id).filter((s) => !s.done);
     if (remaining.length) {
       const sec = cur.restSec ?? e.restSec;
-      if (sec) restState = { endsAt: Date.now() + sec * 1000 };
+      if (sec) startRest(sec, `${e.name} · serie ${remaining[0].index} di ${sets.length}`);
     }
     render();
     return;
@@ -208,6 +246,7 @@ function tick() {
     const rem = Math.round((restState.endsAt - Date.now()) / 1000);
     if (rem <= 0) {
       restState = null;
+      clearRestNotification(); // l'app è in primo piano: evita il popup doppio
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
       beep();
       toast('Recupero finito 💪');
@@ -274,7 +313,7 @@ document.addEventListener('click', async (ev) => {
       if (nowDone && set.kind !== 'cardio') {
         const le = st.logExById(set.logExerciseId);
         const sec = set.restSec ?? (le && le.restSec);
-        if (sec) restState = { endsAt: Date.now() + sec * 1000 };
+        if (sec) startRest(sec, `${le ? le.name : 'Esercizio'} · recupero`);
       }
       render();
       break;
@@ -305,6 +344,22 @@ document.addEventListener('click', async (ev) => {
       const nv = !cur;
       await st.patchSettings({ workout: { ...(S.settings.workout || {}), keepScreenOn: nv } });
       if (!nv) releaseWake(); else if (currentExercise()) acquireWake();
+      render();
+      break;
+    }
+    case 'toggle-notify': {
+      const cur = (S.settings.workout || {}).notify === true;
+      if (!cur) {
+        if (!('Notification' in window)) { toast('Notifiche non supportate sul dispositivo'); break; }
+        let perm = Notification.permission;
+        if (perm === 'default') perm = await Notification.requestPermission();
+        if (perm !== 'granted') { toast('Permesso notifiche negato'); break; }
+        await st.patchSettings({ workout: { ...(S.settings.workout || {}), notify: true } });
+        toast(triggerSupported ? 'Notifiche recupero attive' : 'Attive, ma questo browser non le programma da bloccato');
+      } else {
+        await st.patchSettings({ workout: { ...(S.settings.workout || {}), notify: false } });
+        clearRestNotification();
+      }
       render();
       break;
     }
