@@ -549,7 +549,7 @@ export function renderEditExercise(dayId, pid) {
     <div class="grp-strength">
       <div class="inline">
         <div class="field"><label>Serie</label><input type="number" id="ex-sets" inputmode="numeric" value="${p.targetSets ?? 3}"></div>
-        <div class="field"><label>Ripetizioni</label><input type="number" id="ex-reps" inputmode="numeric" value="${p.targetReps ?? 10}"></div>
+        <div class="field"><label>Ripetizioni</label><input type="text" id="ex-reps" inputmode="text" value="${esc(String(p.targetReps ?? 10))}" placeholder="es. 8-10"></div>
       </div>
       <div class="field"><label>Peso obiettivo (kg)</label><input type="number" id="ex-weight" inputmode="decimal" value="${p.targetWeight ?? 0}"></div>
     </div>

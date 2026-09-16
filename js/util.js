@@ -35,6 +35,24 @@ export const fmtDuration = (sec) => {
 export const fmtNum = (n) =>
   (n == null || n === '') ? '—' : String(n).replace('.', ',');
 
+// Normalizza un obiettivo di ripetizioni: singolo ("10") o range ("8-10").
+// Ritorna la stringa normalizzata, o null se non valido.
+export const parseRepsTarget = (v) => {
+  const s = String(v ?? '').trim().replace(/\s*[-–]\s*/, '-');
+  const m = s.match(/^(\d+)(?:-(\d+))?$/);
+  if (!m) return null;
+  const a = +m[1];
+  if (m[2] == null) return String(a);
+  const b = +m[2];
+  return b <= a ? String(a) : `${a}-${b}`;
+};
+
+// Primo numero di un obiettivo ripetizioni ("8-10" → 8), per il valore iniziale.
+export const repsLow = (v) => {
+  const m = String(v ?? '').match(/\d+/);
+  return m ? +m[0] : null;
+};
+
 export const daysBetween = (isoA, isoB) =>
   Math.round((parseISO(isoB) - parseISO(isoA)) / 86400000);
 

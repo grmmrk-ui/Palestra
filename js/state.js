@@ -2,7 +2,7 @@
 // ops mutate S and persist, then app.js re-renders.
 import * as db from './db.js';
 import { buildSeed } from './seed.js';
-import { uid, isoDate, parseISO, weekdayMon, daysBetween } from './util.js';
+import { uid, isoDate, parseISO, weekdayMon, daysBetween, repsLow } from './util.js';
 
 export const S = {
   settings: null,
@@ -90,7 +90,7 @@ export async function ensureSession(iso) {
     } else {
       for (let i = 1; i <= p.targetSets; i++) {
         newSets.push({ id: uid(), logExerciseId: le.id, index: i, kind: 'strength',
-          weight: p.targetWeight, reps: p.targetReps, rpe: null, restSec: p.restSec, done: false });
+          weight: p.targetWeight, reps: repsLow(p.targetReps), rpe: null, restSec: p.restSec, done: false });
       }
     }
   }

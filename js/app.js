@@ -1,7 +1,7 @@
 import * as st from './state.js';
 import { S } from './state.js';
 import * as V from './views.js';
-import { isoDate, fmtDuration, toast, parseISO, ACCENTS } from './util.js';
+import { isoDate, fmtDuration, toast, parseISO, ACCENTS, parseRepsTarget } from './util.js';
 import { pushConfigured, ensurePushSubscription, schedulePush } from './push.js';
 
 const app = document.getElementById('app');
@@ -516,7 +516,7 @@ document.addEventListener('click', async (ev) => {
       if (kind === 'cardio') {
         data.targetDurationSec = int('ex-dur', 10) * 60; data.targetSets = 1; data.targetReps = 0; data.targetWeight = 0;
       } else {
-        data.targetSets = int('ex-sets', 3); data.targetReps = int('ex-reps', 10);
+        data.targetSets = int('ex-sets', 3); data.targetReps = parseRepsTarget(val('ex-reps')) ?? '10';
         data.targetWeight = num(val('ex-weight')) ?? 0; data.targetDurationSec = 0;
       }
       const day = t.dataset.day;
