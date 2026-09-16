@@ -553,7 +553,7 @@ document.addEventListener('change', async (ev) => {
 
   switch (a) {
     case 'set-weight': await ensureStarted(id); await st.patchSet(id, { weight: num(v) }); break;
-    case 'set-reps': await ensureStarted(id); await st.patchSet(id, { reps: num(v) }); break;
+    case 'set-reps': await ensureStarted(id); await st.patchSet(id, { reps: parseRepsTarget(v) }); break;
     case 'set-rest': { const n = parseInt(v, 10); await st.patchSet(id, { restSec: isNaN(n) ? null : n }); break; }
     case 'cardio-min': await ensureStarted(id); await st.patchSet(id, { durationSec: (num(v) || 0) * 60 }); break;
     case 'cardio-dist': await st.patchSet(id, { distance: num(v) }); break;
