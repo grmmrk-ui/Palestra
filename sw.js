@@ -1,5 +1,5 @@
 // Palestra — service worker (offline app shell)
-const CACHE = 'palestra-v23';
+const CACHE = 'palestra-v24';
 const ASSETS = [
   './',
   './index.html',
@@ -13,7 +13,8 @@ const ASSETS = [
   './js/util.js',
   './js/views.js',
   './js/config.js',
-  './js/push.js'
+  './js/push.js',
+  './js/cloud.js'
 ];
 
 self.addEventListener('install', (e) => {
