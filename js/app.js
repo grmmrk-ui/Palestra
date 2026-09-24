@@ -1,7 +1,7 @@
 import * as st from './state.js';
 import { S } from './state.js';
 import * as V from './views.js';
-import { isoDate, fmtDuration, toast, parseISO, ACCENTS } from './util.js';
+import { isoDate, fmtDuration, toast, parseISO, ACCENTS, parseRepsTarget } from './util.js';
 import { pushConfigured, ensurePushSubscription, schedulePush } from './push.js';
 
 const app = document.getElementById('app');
@@ -271,9 +271,12 @@ function renderHud(e) {
   const sets = st.setsOfLogEx(e.id);
   const cur = sets.find((s) => !s.done);
   if (restState) {
+    const nextEx = cur ? null : nextExerciseOf(e);
+    const sub = cur ? `poi serie ${cur.index} di ${sets.length}`
+      : (nextEx ? `poi ${esc(nextEx.name)}` : 'ultimo recupero');
     hud.innerHTML = `
       <div class="phase">
-        <div><div class="lab">Recupero</div><div class="sub">poi serie ${cur ? cur.index : '—'} di ${sets.length}</div></div>
+        <div><div class="lab">Recupero</div><div class="sub">${sub}</div></div>
         <div class="big tnum" data-rest>${fmtDuration(Math.max(0, Math.round((restState.endsAt - Date.now()) / 1000)))}</div>
       </div>
       <button class="hud-btn resting" data-action="advance">Salta recupero →</button>`;
@@ -305,12 +308,15 @@ async function advanceWorkout() {
     await ensureStarted(cur.id);
     await st.patchSet(cur.id, { done: true });
     const remaining = st.setsOfLogEx(e.id).filter((s) => !s.done);
-    if (remaining.length) {
-      const sec = cur.restSec ?? e.restSec;
-      if (sec) {
-        restState = { endsAt: Date.now() + sec * 1000 };
-        if (notifyEnabled()) schedulePush(sec, { title: 'Recupero finito 💪', body: `Inizia la serie ${remaining[0].index} · ${e.name}`, action: 'next', actionTitle: '▶ Prossima serie' });
-      }
+    const sec = cur.restSec ?? e.restSec;
+    const next = nextExerciseOf(e);
+    if (sec && remaining.length) {
+      restState = { endsAt: Date.now() + sec * 1000 };
+      if (notifyEnabled()) schedulePush(sec, { title: 'Recupero finito 💪', body: `Inizia la serie ${remaining[0].index} · ${e.name}`, action: 'next', actionTitle: '▶ Prossima serie' });
+    } else if (sec && next) {
+      // ultima serie completata: recupero prima del prossimo esercizio
+      restState = { endsAt: Date.now() + sec * 1000 };
+      if (notifyEnabled()) schedulePush(sec, { title: 'Recupero finito 💪', body: `Prossimo esercizio · ${next.name}`, action: 'next', actionTitle: '▶ Prossimo esercizio' });
     }
     render();
     return;
@@ -516,7 +522,7 @@ document.addEventListener('click', async (ev) => {
       if (kind === 'cardio') {
         data.targetDurationSec = int('ex-dur', 10) * 60; data.targetSets = 1; data.targetReps = 0; data.targetWeight = 0;
       } else {
-        data.targetSets = int('ex-sets', 3); data.targetReps = int('ex-reps', 10);
+        data.targetSets = int('ex-sets', 3); data.targetReps = parseRepsTarget(val('ex-reps')) ?? '10';
         data.targetWeight = num(val('ex-weight')) ?? 0; data.targetDurationSec = 0;
       }
       const day = t.dataset.day;
@@ -553,7 +559,7 @@ document.addEventListener('change', async (ev) => {
 
   switch (a) {
     case 'set-weight': await ensureStarted(id); await st.patchSet(id, { weight: num(v) }); break;
-    case 'set-reps': await ensureStarted(id); await st.patchSet(id, { reps: num(v) }); break;
+    case 'set-reps': await ensureStarted(id); await st.patchSet(id, { reps: parseRepsTarget(v) }); break;
     case 'set-rest': { const n = parseInt(v, 10); await st.patchSet(id, { restSec: isNaN(n) ? null : n }); break; }
     case 'cardio-min': await ensureStarted(id); await st.patchSet(id, { durationSec: (num(v) || 0) * 60 }); break;
     case 'cardio-dist': await st.patchSet(id, { distance: num(v) }); break;

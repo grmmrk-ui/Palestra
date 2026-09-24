@@ -220,7 +220,7 @@ export function renderExercise(id) {
     <div class="setrow ${x.done ? 'done' : (doneCount === x.index - 1 && !x.done ? 'now' : '')}">
       <div class="idx">${x.index}</div>
       <input type="number" inputmode="decimal" value="${x.weight ?? ''}" data-action="set-weight" data-id="${x.id}" aria-label="Peso serie ${x.index}">
-      <input type="number" inputmode="numeric" value="${x.reps ?? ''}" data-action="set-reps" data-id="${x.id}" aria-label="Ripetizioni serie ${x.index}">
+      <input type="text" inputmode="text" value="${esc(x.reps == null ? '' : String(x.reps))}" data-action="set-reps" data-id="${x.id}" aria-label="Ripetizioni serie ${x.index}">
       <input type="number" inputmode="numeric" value="${x.restSec ?? ''}" data-action="set-rest" data-id="${x.id}" aria-label="Recupero serie ${x.index}">
       <button class="mark" data-action="toggle-set" data-id="${x.id}" aria-label="Completa serie ${x.index}">${x.done ? '✓' : '○'}</button>
     </div>`).join('');
@@ -549,7 +549,7 @@ export function renderEditExercise(dayId, pid) {
     <div class="grp-strength">
       <div class="inline">
         <div class="field"><label>Serie</label><input type="number" id="ex-sets" inputmode="numeric" value="${p.targetSets ?? 3}"></div>
-        <div class="field"><label>Ripetizioni</label><input type="number" id="ex-reps" inputmode="numeric" value="${p.targetReps ?? 10}"></div>
+        <div class="field"><label>Ripetizioni</label><input type="text" id="ex-reps" inputmode="text" value="${esc(String(p.targetReps ?? 10))}" placeholder="es. 8-10"></div>
       </div>
       <div class="field"><label>Peso obiettivo (kg)</label><input type="number" id="ex-weight" inputmode="decimal" value="${p.targetWeight ?? 0}"></div>
     </div>
