@@ -3,6 +3,7 @@ import { S } from './state.js';
 import * as V from './views.js';
 import { isoDate, fmtDuration, toast, parseISO, ACCENTS, parseRepsTarget } from './util.js';
 import { pushConfigured, ensurePushSubscription, schedulePush } from './push.js';
+import * as cloud from './cloud.js';
 
 const app = document.getElementById('app');
 const tabbar = document.getElementById('tabbar');
@@ -583,7 +584,40 @@ document.addEventListener('click', async (ev) => {
       render();
       break;
     }
+
+    /* ---- sincronizzazione cloud (codice di ripristino) ---- */
+    case 'cloud-enable': {
+      if (!cloud.cloudConfigured()) { toast('Sync non ancora configurata'); break; }
+      try {
+        const code = await cloud.enableCloud();
+        render();
+        alert(`Sincronizzazione attivata ✓\n\nIl tuo codice di ripristino è:\n\n${code}\n\nSalvalo in un posto sicuro (note, email a te stesso…): serve per recuperare i dati su un altro telefono. È l'unica chiave e non è recuperabile se lo perdi.`);
+      } catch (e) { toast('Attivazione non riuscita'); }
+      break;
+    }
+    case 'cloud-sync-now': {
+      try { await cloud.pushBackup(); render(); toast('Sincronizzato ✓'); }
+      catch (e) { toast('Sync non riuscita'); }
+      break;
+    }
+    case 'cloud-restore': {
+      const code = prompt('Inserisci il codice di ripristino:');
+      if (!code) break;
+      if (!confirm('Ripristinare i dati dal cloud? Sostituirà i dati attuali su questo dispositivo.')) break;
+      try {
+        const ok = await cloud.pullBackup(code);
+        if (ok) { toast('Dati ripristinati ✓'); location.hash = '#/calendar'; render(); }
+        else toast('Nessun backup per quel codice');
+      } catch (e) { toast('Codice non valido o errore di rete'); }
+      break;
+    }
+    case 'cloud-disable': {
+      if (!confirm('Disattivare la sync su questo dispositivo? I dati sul cloud restano; questo telefono smette di sincronizzare.')) break;
+      await cloud.disableCloud(); render(); toast('Sync disattivata');
+      break;
+    }
   }
+  cloud.scheduleCloudSync();
 });
 
 document.addEventListener('change', async (ev) => {
@@ -630,6 +664,7 @@ document.addEventListener('change', async (ev) => {
       break;
     }
   }
+  cloud.scheduleCloudSync();
 });
 
 function shiftMonth({ y, m }, delta) {

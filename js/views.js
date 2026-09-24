@@ -2,6 +2,7 @@
 import * as st from './state.js';
 import { S } from './state.js';
 import { esc, isoDate, parseISO, fmtDay, fmtDuration, fmtNum, WD, MONTHS, weekdayMon, ACCENTS, GOALS, APP_VERSION, FEEDBACK_EMAIL } from './util.js';
+import * as cloud from './cloud.js';
 
 /* ---------------- Calendar ---------------- */
 export function renderCalendar(ym) {
@@ -250,6 +251,36 @@ export function renderExercise(id) {
   <div class="card pad" style="margin-top:14px">${noteField(e)}</div>`;
 }
 
+function cloudSection() {
+  if (!cloud.cloudConfigured()) {
+    return `<div class="row spread" style="padding:10px 0"><span>Sincronizzazione cloud</span><span class="chip ghost">Non configurata</span></div>
+    <p class="muted" style="font-size:12px;margin:0 0 4px">Richiede una configurazione una tantum del server (vedi <b>supabase/CLOUD_SETUP.md</b>). Nel frattempo usa il Backup qui sotto.</p>`;
+  }
+  if (!cloud.cloudActive()) {
+    return `<div class="row spread" style="padding:10px 0"><span>Sincronizzazione cloud</span><span class="chip ghost">Off</span></div>
+    <p class="muted" style="font-size:12px;margin:0 0 10px">Attiva la sync: l'app salva i dati sul cloud e ti dà un <b>codice di ripristino</b> per recuperarli su un altro telefono.</p>
+    <div class="inline" style="gap:10px">
+      <button class="btn" data-action="cloud-enable" style="flex:1">☁️ Attiva sync</button>
+      <button class="btn ghost" data-action="cloud-restore" style="flex:1">Ho un codice</button>
+    </div>`;
+  }
+  const code = cloud.cloudCode();
+  const last = cloud.cloudLastSync();
+  const lastTxt = last ? new Date(last).toLocaleString('it-IT') : '—';
+  return `<div class="row spread" style="padding:10px 0"><span>Sincronizzazione cloud</span><span class="chip rest">Attiva ✓</span></div>
+    <div class="field">
+      <div class="row spread" style="gap:8px;align-items:center">
+        <code style="font-size:16px;letter-spacing:1px;user-select:all;word-break:break-all">${esc(code)}</code>
+        <button class="btn ghost btn-sm" data-action="cloud-sync-now" style="width:auto;white-space:nowrap">↻ Ora</button>
+      </div>
+      <div class="muted" style="font-size:12px;margin-top:6px">Codice di ripristino · ultima sync: ${lastTxt}. Conservalo: è l'unica chiave per recuperare i dati.</div>
+    </div>
+    <div class="inline" style="gap:10px">
+      <button class="btn ghost" data-action="cloud-restore" style="flex:1">Ripristina da codice</button>
+      <button class="btn ghost" data-action="cloud-disable" style="flex:1">Disattiva</button>
+    </div>`;
+}
+
 function noteField(e) {
   return `<div class="field" style="margin-bottom:0"><label>Note esercizio</label>
     <textarea data-action="ex-note" data-id="${e.id}" placeholder="Sensazioni, tecnica, dolori…">${esc(e.note || '')}</textarea></div>`;
@@ -430,8 +461,7 @@ export function renderProfile() {
   <div class="card pad">
     <div class="row spread" style="padding:6px 0"><span>Versione</span><span class="chip effort">${APP_VERSION}</span></div>
     <hr class="hr">
-    <div class="row spread" style="padding:10px 0"><span>Sincronizzazione cloud</span><span class="chip ghost">In arrivo</span></div>
-    <p class="muted" style="font-size:12px;margin:0 0 12px">I dati sono salvati sul dispositivo. La sincronizzazione tra telefoni (Supabase) arriva nel prossimo step.</p>
+    ${cloudSection()}
     <hr class="hr">
     <div style="padding:8px 0 4px"><div style="font-weight:600">Backup dei dati</div>
       <div class="muted" style="font-size:12px;margin-bottom:10px">Salva un file con tutti i tuoi allenamenti, scheda e peso. Fallo ogni tanto: se pulisci il browser o cambi telefono, con "Ripristina" recuperi tutto. (Le foto non sono incluse.)</div>

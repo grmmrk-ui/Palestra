@@ -228,6 +228,12 @@ export async function patchSettings(patch) {
   await db.put('settings', S.settings);
 }
 
+// Metadati sync cloud (codice di ripristino, ultima sincronizzazione).
+export async function setCloudMeta(patch) {
+  S.settings.cloud = Object.assign({}, S.settings.cloud, patch);
+  await db.put('settings', S.settings);
+}
+
 /* ---- media (foto/video per esercizio) ---- */
 export const getMedia = (plannedId) => db.getAllByIndex('media', 'plannedId', plannedId);
 export async function addMedia(plannedId, file) {
