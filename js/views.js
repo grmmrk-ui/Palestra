@@ -40,6 +40,13 @@ export function renderCalendar(ym) {
     <button class="iconbtn" data-action="theme" aria-label="Cambia tema">◐</button>
   </div>
 
+  ${st.backupDue() ? `<div class="card pad" style="border:1px solid var(--effort);margin-bottom:14px">
+    <div class="row spread" style="gap:12px;align-items:center">
+      <div><div style="font-weight:600">🌙 Backup della sera</div>
+        <div class="muted" style="font-size:12px">Salva i dati di oggi: un tocco e sei al sicuro.</div></div>
+      <button class="btn btn-sm" data-action="export-data" style="width:auto;white-space:nowrap">⬇️ Salva</button>
+    </div></div>` : ''}
+
   <div class="streak">
     <div><div class="big tnum">${streak}</div><small>giorni di fila</small></div>
     <div class="sep"></div>
