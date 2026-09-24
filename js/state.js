@@ -47,6 +47,15 @@ export async function exportBackup() {
   return { app: 'palestra', version: 1, exportedAt: new Date().toISOString(), data };
 }
 
+// Promemoria serale: di sera (dalle 20), se oggi non hai ancora esportato
+// e c'è qualcosa da salvare, l'app invita a fare il backup.
+export function backupDue() {
+  if (!S.sessions.length) return false;
+  const last = (S.settings.lastBackupAt || '').slice(0, 10);
+  if (last === isoDate()) return false;
+  return new Date().getHours() >= 20;
+}
+
 export async function importBackup(payload) {
   if (!payload || payload.app !== 'palestra' || typeof payload.data !== 'object') {
     throw new Error('File di backup non valido');

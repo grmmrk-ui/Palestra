@@ -449,7 +449,9 @@ document.addEventListener('click', async (ev) => {
       a.href = url; a.download = `palestra-backup-${isoDate()}.json`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      await st.patchSettings({ lastBackupAt: new Date().toISOString() });
       toast('Backup esportato ⬇️');
+      render();
       break;
     }
     case 'import-data': {
