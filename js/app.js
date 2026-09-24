@@ -441,6 +441,38 @@ document.addEventListener('click', async (ev) => {
       render();
       break;
     }
+    case 'export-data': {
+      const payload = await st.exportBackup();
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `palestra-backup-${isoDate()}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast('Backup esportato ⬇️');
+      break;
+    }
+    case 'import-data': {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'application/json,.json';
+      input.onchange = async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        try {
+          const payload = JSON.parse(await file.text());
+          const n = ((payload.data && payload.data.sessions) || []).length;
+          if (!confirm(`Ripristinare questo backup?\nSostituirà i dati attuali con ${n} allenamenti dal file.`)) return;
+          await st.importBackup(payload);
+          toast('Backup ripristinato ✓');
+          location.hash = '#/calendar';
+          render();
+        } catch (err) {
+          toast('File di backup non valido');
+        }
+      };
+      input.click();
+      break;
+    }
     case 'del-weight': await st.deleteBodyweight(id); render(); break;
     case 'toggle-sound': {
       const cur = (S.settings.workout || {}).sound !== false;

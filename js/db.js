@@ -60,6 +60,7 @@ export const getAllByIndex = (store, index, key) =>
 export const get = (store, id) => open().then(() => wrap(tx(store, 'readonly').get(id)));
 export const put = (store, val) => open().then(() => wrap(tx(store, 'readwrite').put(val)).then(() => val));
 export const del = (store, id) => open().then(() => wrap(tx(store, 'readwrite').delete(id)));
+export const clear = (store) => open().then(() => wrap(tx(store, 'readwrite').clear()));
 
 export function bulkPut(store, vals) {
   return open().then(() => new Promise((res, rej) => {

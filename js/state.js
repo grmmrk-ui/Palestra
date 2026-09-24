@@ -36,6 +36,30 @@ export async function boot() {
   S.logSets = logSets; S.bodyweight = bodyweight;
 }
 
+/* ---- backup / ripristino ---- */
+// Non include i media (foto/video): sono blob, esclusi per tenere il file leggero.
+const BACKUP_STORES = ['settings', 'programs', 'days', 'planned',
+  'sessions', 'logExercises', 'logSets', 'bodyweight'];
+
+export async function exportBackup() {
+  const data = {};
+  for (const s of BACKUP_STORES) data[s] = await db.getAll(s);
+  return { app: 'palestra', version: 1, exportedAt: new Date().toISOString(), data };
+}
+
+export async function importBackup(payload) {
+  if (!payload || payload.app !== 'palestra' || typeof payload.data !== 'object') {
+    throw new Error('File di backup non valido');
+  }
+  for (const s of BACKUP_STORES) {
+    const rows = payload.data[s];
+    if (!Array.isArray(rows)) continue;
+    await db.clear(s);
+    if (rows.length) await db.bulkPut(s, rows);
+  }
+  await boot(); // ricarica S dal DB appena ripristinato
+}
+
 /* ---- getters ---- */
 export const activeProgram = () =>
   S.programs.find((p) => p.id === S.settings.activeProgramId) || S.programs[0];
