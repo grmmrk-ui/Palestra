@@ -425,6 +425,15 @@ export function renderProfile() {
     <hr class="hr">
     <div class="row spread" style="padding:10px 0"><span>Sincronizzazione cloud</span><span class="chip ghost">In arrivo</span></div>
     <p class="muted" style="font-size:12px;margin:0 0 12px">I dati sono salvati sul dispositivo. La sincronizzazione tra telefoni (Supabase) arriva nel prossimo step.</p>
+    <hr class="hr">
+    <div style="padding:8px 0 4px"><div style="font-weight:600">Backup dei dati</div>
+      <div class="muted" style="font-size:12px;margin-bottom:10px">Salva un file con tutti i tuoi allenamenti, scheda e peso. Fallo ogni tanto: se pulisci il browser o cambi telefono, con "Ripristina" recuperi tutto. (Le foto non sono incluse.)</div>
+      <div class="inline" style="gap:10px">
+        <button class="btn ghost" data-action="export-data" style="flex:1">⬇️ Esporta backup</button>
+        <button class="btn ghost" data-action="import-data" style="flex:1">⬆️ Ripristina</button>
+      </div>
+    </div>
+    <hr class="hr">
     <a class="btn ghost" href="${feedbackHref()}" style="display:block;text-align:center">✉️ Segnala un problema</a>
   </div>
   <p class="muted" style="text-align:center;font-size:12px;margin-top:20px">Palestra · ${APP_VERSION} · PWA offline</p>`;
