@@ -271,9 +271,12 @@ function renderHud(e) {
   const sets = st.setsOfLogEx(e.id);
   const cur = sets.find((s) => !s.done);
   if (restState) {
+    const nextEx = cur ? null : nextExerciseOf(e);
+    const sub = cur ? `poi serie ${cur.index} di ${sets.length}`
+      : (nextEx ? `poi ${esc(nextEx.name)}` : 'ultimo recupero');
     hud.innerHTML = `
       <div class="phase">
-        <div><div class="lab">Recupero</div><div class="sub">poi serie ${cur ? cur.index : '—'} di ${sets.length}</div></div>
+        <div><div class="lab">Recupero</div><div class="sub">${sub}</div></div>
         <div class="big tnum" data-rest>${fmtDuration(Math.max(0, Math.round((restState.endsAt - Date.now()) / 1000)))}</div>
       </div>
       <button class="hud-btn resting" data-action="advance">Salta recupero →</button>`;
@@ -305,12 +308,15 @@ async function advanceWorkout() {
     await ensureStarted(cur.id);
     await st.patchSet(cur.id, { done: true });
     const remaining = st.setsOfLogEx(e.id).filter((s) => !s.done);
-    if (remaining.length) {
-      const sec = cur.restSec ?? e.restSec;
-      if (sec) {
-        restState = { endsAt: Date.now() + sec * 1000 };
-        if (notifyEnabled()) schedulePush(sec, { title: 'Recupero finito 💪', body: `Inizia la serie ${remaining[0].index} · ${e.name}`, action: 'next', actionTitle: '▶ Prossima serie' });
-      }
+    const sec = cur.restSec ?? e.restSec;
+    const next = nextExerciseOf(e);
+    if (sec && remaining.length) {
+      restState = { endsAt: Date.now() + sec * 1000 };
+      if (notifyEnabled()) schedulePush(sec, { title: 'Recupero finito 💪', body: `Inizia la serie ${remaining[0].index} · ${e.name}`, action: 'next', actionTitle: '▶ Prossima serie' });
+    } else if (sec && next) {
+      // ultima serie completata: recupero prima del prossimo esercizio
+      restState = { endsAt: Date.now() + sec * 1000 };
+      if (notifyEnabled()) schedulePush(sec, { title: 'Recupero finito 💪', body: `Prossimo esercizio · ${next.name}`, action: 'next', actionTitle: '▶ Prossimo esercizio' });
     }
     render();
     return;

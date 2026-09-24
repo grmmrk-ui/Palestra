@@ -57,6 +57,23 @@ export const setsOfLogEx = (leid) =>
   S.logSets.filter((s) => s.logExerciseId === leid).sort((a, b) => a.index - b.index);
 export const logExById = (id) => S.logExercises.find((e) => e.id === id);
 
+// Ultimo esercizio effettivamente eseguito (almeno una serie fatta) prima di
+// beforeDate, per riportare pesi e note nell'allenamento successivo.
+export function lastPerformedExercise(planned, beforeDate) {
+  const past = S.sessions
+    .filter((s) => s.date < beforeDate)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const match = (e) => (planned.id && e.plannedId === planned.id)
+    || (e.name === planned.name && e.muscle === planned.muscle);
+  for (const s of past) {
+    const le = logExOfSession(s.id).find(match);
+    if (!le) continue;
+    const sets = setsOfLogEx(le.id);
+    if (sets.some((x) => x.done)) return { le, sets };
+  }
+  return null;
+}
+
 export const bodyweightSorted = () =>
   [...S.bodyweight].sort((a, b) => (a.date < b.date ? -1 : 1));
 
@@ -77,9 +94,10 @@ export async function ensureSession(iso) {
 
   const newEx = [], newSets = [];
   for (const p of plannedForDay(dayId)) {
+    const hist = lastPerformedExercise(p, iso);
     const le = {
       id: uid(), sessionId: s.id, plannedId: p.id, name: p.name, muscle: p.muscle,
-      kind: p.kind, note: '', order: p.order, restSec: p.restSec,
+      kind: p.kind, note: (hist && hist.le.note) || '', order: p.order, restSec: p.restSec,
       targetSets: p.targetSets, targetReps: p.targetReps, targetWeight: p.targetWeight,
       targetDurationSec: p.targetDurationSec || 0,
     };
@@ -89,8 +107,10 @@ export async function ensureSession(iso) {
         durationSec: p.targetDurationSec || 0, distance: null, done: false });
     } else {
       for (let i = 1; i <= p.targetSets; i++) {
+        const prev = hist && hist.sets.find((x) => x.index === i);
+        const weight = prev && prev.weight != null ? prev.weight : p.targetWeight;
         newSets.push({ id: uid(), logExerciseId: le.id, index: i, kind: 'strength',
-          weight: p.targetWeight, reps: repsLow(p.targetReps), rpe: null, restSec: p.restSec, done: false });
+          weight, reps: repsLow(p.targetReps), rpe: null, restSec: p.restSec, done: false });
       }
     }
   }
