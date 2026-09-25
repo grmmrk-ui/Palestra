@@ -14,5 +14,5 @@ export const PUSH = {
 // prima. Compila dopo aver creato la funzione (vedi supabase/CLOUD_SETUP.md).
 export const CLOUD = {
   // URL della Edge Function, es: https://<project>.supabase.co/functions/v1/sync
-  functionUrl: '',
+  functionUrl: 'https://oschsdxgqhpkrjitizoc.supabase.co/functions/v1/sync',
 };
