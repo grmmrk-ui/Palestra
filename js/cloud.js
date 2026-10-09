@@ -44,9 +44,38 @@ async function call(action, body) {
 export async function pushBackup() {
   if (!cloudActive()) return false;
   const data = await st.exportBackup();
+  data.syncedAt = new Date().toISOString();
   await call('push', { code: cloudCode(), data });
-  await st.setCloudMeta({ lastSyncAt: new Date().toISOString() });
+  await st.setCloudMeta({ lastSyncAt: data.syncedAt });
   return true;
+}
+
+// Sync automatica "vince l'ultimo dispositivo": se sul cloud c'è una versione
+// più recente dell'ultima sincronizzata qui, la importa; altrimenti carica.
+// Ritorna true se i dati locali sono cambiati (serve un render).
+// "Modifiche locali non ancora caricate": persistito per sopravvivere alla chiusura.
+const isDirty = () => { try { return localStorage.getItem('palestra.dirty') === '1'; } catch (e) { return true; } };
+const setDirty = (v) => { try { v ? localStorage.setItem('palestra.dirty', '1') : localStorage.removeItem('palestra.dirty'); } catch (e) {} };
+let _busy = false;
+export async function autoSync() {
+  if (!cloudActive() || _busy) return false;
+  _busy = true;
+  try {
+    const out = await call('pull', { code: cloudCode() });
+    const remote = out && out.data;
+    if (remote && remote.syncedAt && remote.syncedAt > cloudLastSync()) {
+      const code = cloudCode();
+      await st.importBackup(remote);
+      await st.setCloudMeta({ code, lastSyncAt: remote.syncedAt });
+      return true;
+    }
+    if (!remote || isDirty()) { await pushBackup(); setDirty(false); }
+    return false;
+  } catch (e) {
+    return false; // offline: riproverà al prossimo evento
+  } finally {
+    _busy = false;
+  }
 }
 
 // Recupera il backup dal cloud per un dato codice e lo importa in locale.
@@ -72,10 +101,15 @@ export async function disableCloud() {
   await st.setCloudMeta({ code: '', lastSyncAt: '' });
 }
 
+// Callback registrata da app.js: ridisegna dopo che arrivano dati più nuovi.
+let onRemoteApplied = () => {};
+export const setOnRemoteApplied = (fn) => { onRemoteApplied = fn; };
+
 // Auto-upload con debounce dopo una modifica dei dati.
 let _t = null;
 export function scheduleCloudSync() {
   if (!cloudActive()) return;
+  setDirty(true);
   clearTimeout(_t);
-  _t = setTimeout(() => { pushBackup().catch(() => {}); }, 6000);
+  _t = setTimeout(() => { autoSync().then((changed) => { if (changed) onRemoteApplied(); }); }, 6000);
 }

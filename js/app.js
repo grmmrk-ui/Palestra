@@ -697,6 +697,22 @@ window.addEventListener('hashchange', render);
     if (!location.hash) location.hash = '#/calendar';
     render();
     setInterval(tick, 1000);
+
+    // Sync automatica: all'avvio, al ritorno in primo piano e ogni minuto.
+    // Non ridisegna durante un esercizio attivo, per non perdere input in corso.
+    const refreshFromCloud = async () => {
+      if (document.visibilityState !== 'visible' || currentExercise()) return;
+      if (await cloud.autoSync()) {
+        applyTheme(S.settings.theme || 'system');
+        applyAccent(S.settings.accent || 'coral');
+        render();
+      }
+    };
+    cloud.setOnRemoteApplied(() => { if (!currentExercise()) render(); });
+    document.addEventListener('visibilitychange', refreshFromCloud);
+    window.addEventListener('online', refreshFromCloud);
+    setInterval(refreshFromCloud, 60000);
+    refreshFromCloud();
   } catch (e) {
     app.innerHTML = `<div class="empty-state"><div class="em">⚠️</div>Errore di avvio.<br><small>${e.message}</small></div>`;
     console.error(e);
