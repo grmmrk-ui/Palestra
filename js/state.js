@@ -159,6 +159,21 @@ export function lastPerformedExercise(planned, beforeDate) {
   return null;
 }
 
+// Miglior peso mai segnato (serie fatta) per un esercizio prima di beforeDate.
+export function bestWeight(planned, beforeDate) {
+  let best = null;
+  for (const sess of S.sessions) {
+    if (sess.date >= beforeDate) continue;
+    const le = logExOfSession(sess.id).find((e) => (planned.id && e.plannedId === planned.id)
+      || (e.name === planned.name && e.muscle === planned.muscle));
+    if (!le) continue;
+    for (const x of setsOfLogEx(le.id)) {
+      if (x.done && x.kind !== 'cardio' && x.weight != null && (best === null || x.weight > best)) best = x.weight;
+    }
+  }
+  return best;
+}
+
 export const bodyweightSorted = () =>
   [...S.bodyweight].sort((a, b) => (a.date < b.date ? -1 : 1));
 
@@ -180,6 +195,7 @@ export async function ensureSession(iso) {
   const newEx = [], newSets = [];
   for (const p of plannedForDay(dayId)) {
     const hist = lastPerformedExercise(p, iso);
+    const best = bestWeight(p, iso);
     const le = {
       id: uid(), sessionId: s.id, plannedId: p.id, name: p.name, muscle: p.muscle,
       kind: p.kind, note: (hist && hist.le.note) || '', order: p.order, restSec: p.restSec,
@@ -193,7 +209,7 @@ export async function ensureSession(iso) {
     } else {
       for (let i = 1; i <= p.targetSets; i++) {
         const prev = hist && hist.sets.find((x) => x.index === i);
-        const weight = prev && prev.weight != null ? prev.weight : p.targetWeight;
+        const weight = best != null ? best : prev && prev.weight != null ? prev.weight : p.targetWeight;
         newSets.push({ id: uid(), logExerciseId: le.id, index: i, kind: 'strength',
           weight, reps: repsLow(p.targetReps), rpe: null, restSec: p.restSec, done: false });
       }
