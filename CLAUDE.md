@@ -6,8 +6,10 @@ App PWA per il tracking degli allenamenti in palestra. **Mobile-first, offline, 
 
 - **Nessun build step, nessuna dipendenza a runtime.** HTML/CSS/JS puro con moduli ES nativi.
   Non introdurre bundler/framework/npm senza motivo forte: la semplicità è una feature.
-- **Local-first.** I dati stanno in IndexedDB (`js/db.js`). La sincronizzazione cloud
-  (Supabase) è un layer futuro; schema pronto in `supabase/schema.sql`.
+- **Local-first.** I dati stanno in IndexedDB (`js/db.js`). La sync cloud (`js/cloud.js`,
+  Edge Function `supabase/functions/sync`) è un backup indicizzato da un codice di ripristino:
+  `autoSync()` importa il backup più recente (`syncedAt`) all'avvio/foreground/ogni 60s e
+  carica le modifiche locali. Vince l'ultimo dispositivo, nessun merge per record.
 - **Priorità del prodotto: l'allenamento.** Il resto (peso, cloud) viene dopo.
 
 ## Architettura

@@ -43,8 +43,8 @@ Tenerli distinti conserva lo storico anche cambiando scheda, ed è la base per i
 
 ## Prossimi passi
 
-1. **Sync cloud** con Supabase (account gratuito): auth + Postgres, i dati si allineano
-   tra telefoni. Schema in `supabase/schema.sql`.
+1. **Sync cloud**: già attiva con codice di ripristino e allineamento automatico
+   (vince l'ultimo dispositivo). Prossimo passo: merge per record e login.
 2. Modifica scheda dall'app (aggiungere/riordinare esercizi).
 3. Grafici progressi per esercizio (volume, carico massimo).
 4. Notifiche push per il promemoria peso.
