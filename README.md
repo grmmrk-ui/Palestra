@@ -44,7 +44,7 @@ Tenerli distinti conserva lo storico anche cambiando scheda, ed è la base per i
 ## Prossimi passi
 
 1. **Sync cloud**: già attiva con codice di ripristino e allineamento automatico
-   (vince l'ultimo dispositivo). Prossimo passo: merge per record e login.
+   con merge per record e indicatore di stato. Prossimo passo: login.
 2. Modifica scheda dall'app (aggiungere/riordinare esercizi).
 3. Grafici progressi per esercizio (volume, carico massimo).
 4. Notifiche push per il promemoria peso.

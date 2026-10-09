@@ -251,6 +251,11 @@ export function renderExercise(id) {
   <div class="card pad" style="margin-top:14px">${noteField(e)}</div>`;
 }
 
+function syncChip() {
+  const m = { syncing: ['effort', '↻ Sincronizzo…'], offline: ['ghost', '⚠ Offline'] }[cloud.syncState.status];
+  const [cls, txt] = m || ['rest', 'Sincronizzato ✓'];
+  return `<span class="chip ${cls}">${txt}</span>`;
+}
 function cloudSection() {
   if (!cloud.cloudConfigured()) {
     return `<div class="row spread" style="padding:10px 0"><span>Sincronizzazione cloud</span><span class="chip ghost">Non configurata</span></div>
@@ -267,7 +272,7 @@ function cloudSection() {
   const code = cloud.cloudCode();
   const last = cloud.cloudLastSync();
   const lastTxt = last ? new Date(last).toLocaleString('it-IT') : '—';
-  return `<div class="row spread" style="padding:10px 0"><span>Sincronizzazione cloud</span><span class="chip rest">Attiva ✓</span></div>
+  return `<div class="row spread" style="padding:10px 0"><span>Sincronizzazione cloud</span>${syncChip()}</div>
     <div class="field">
       <div class="row spread" style="gap:8px;align-items:center">
         <code style="font-size:16px;letter-spacing:1px;user-select:all;word-break:break-all">${esc(code)}</code>

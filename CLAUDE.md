@@ -9,7 +9,7 @@ App PWA per il tracking degli allenamenti in palestra. **Mobile-first, offline, 
 - **Local-first.** I dati stanno in IndexedDB (`js/db.js`). La sync cloud (`js/cloud.js`,
   Edge Function `supabase/functions/sync`) è un backup indicizzato da un codice di ripristino:
   `autoSync()` importa il backup più recente (`syncedAt`) all'avvio/foreground/ogni 60s e
-  carica le modifiche locali. Vince l'ultimo dispositivo, nessun merge per record.
+  carica le modifiche locali. Merge per record: ogni doc ha `updatedAt` (stampato in `db.put`), le cancellazioni sono tombstone (`tombstones`, `DB_VERSION` 3); vince il record più recente (`st.mergeBackup`).
 - **Priorità del prodotto: l'allenamento.** Il resto (peso, cloud) viene dopo.
 
 ## Architettura

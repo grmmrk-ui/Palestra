@@ -39,7 +39,7 @@ export async function boot() {
 /* ---- backup / ripristino ---- */
 // Non include i media (foto/video): sono blob, esclusi per tenere il file leggero.
 const BACKUP_STORES = ['settings', 'programs', 'days', 'planned',
-  'sessions', 'logExercises', 'logSets', 'bodyweight'];
+  'sessions', 'logExercises', 'logSets', 'bodyweight', 'tombstones'];
 
 export async function exportBackup() {
   const data = {};
@@ -64,10 +64,62 @@ export async function importBackup(payload) {
     const rows = payload.data[s];
     if (!Array.isArray(rows)) continue;
     await db.clear(s);
-    if (rows.length) await db.bulkPut(s, rows);
+    if (rows.length) await db.bulkPut(s, rows, true);
   }
   await boot(); // ricarica S dal DB appena ripristinato
 }
+
+// Merge per record (sync tra dispositivi): unisce locale e remoto, per ogni id
+// vince la versione con `updatedAt` più recente; una tombstone più recente del
+// documento lo elimina. Ritorna { changed, ahead }: changed = il locale è cambiato,
+// ahead = il locale ha novità che il remoto non ha (da ricaricare sul cloud).
+const TOMB_TTL = 90 * 24 * 3600 * 1000;
+export async function mergeBackup(payload) {
+  if (!payload || payload.app !== 'palestra' || typeof payload.data !== 'object') return { changed: false, ahead: true };
+  const rd = payload.data;
+  const tombs = new Map();
+  let changed = false, ahead = false;
+  const lt = await db.getAll('tombstones');
+  for (const t of lt) tombs.set(t.id, t);
+  const rt = Array.isArray(rd.tombstones) ? rd.tombstones : [];
+  const rtIds = new Set(rt.map((t) => t.id));
+  for (const t of rt) {
+    const cur = tombs.get(t.id);
+    if (!cur || cur.at < t.at) tombs.set(t.id, t);
+  }
+  if (lt.some((t) => !rtIds.has(t.id))) ahead = true;
+  const now = Date.now();
+  const keep = [...tombs.values()].filter((t) => now - t.at < TOMB_TTL);
+  await db.clear('tombstones');
+  if (keep.length) await db.bulkPut('tombstones', keep, true);
+
+  for (const s of BACKUP_STORES) {
+    if (s === 'tombstones') continue;
+    const rrows = Array.isArray(rd[s]) ? rd[s] : [];
+    const local = new Map((await db.getAll(s)).map((r) => [r.id, r]));
+    const remote = new Map(rrows.map((r) => [r.id, r]));
+    for (const id of new Set([...local.keys(), ...remote.keys()])) {
+      const l = local.get(id), r = remote.get(id);
+      const tomb = tombs.get(`${s}:${id}`);
+      const best = !r ? l : !l ? r : ((r.updatedAt || 0) > (l.updatedAt || 0) ? r : l);
+      if (tomb && tomb.at >= (best.updatedAt || 0)) {
+        if (l) { await db.rawDel(s, id); changed = true; }
+        if (r) ahead = true;
+        continue;
+      }
+      if (best === r && r !== l) {
+        if (s === 'settings' && l) r.cloud = l.cloud; // codice/sync restano per-dispositivo
+        await db.put(s, r, true);
+        changed = true;
+      } else if (!r || (l.updatedAt || 0) > (r.updatedAt || 0)) {
+        ahead = true;
+      }
+    }
+  }
+  if (changed) await boot();
+  return { changed, ahead };
+}
+
 
 /* ---- getters ---- */
 export const activeProgram = () =>

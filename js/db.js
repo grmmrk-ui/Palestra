@@ -2,7 +2,7 @@
 // Stores mirror the data model; every doc has a string `id` primary key.
 
 const DB_NAME = 'palestra';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 export const STORES = {
   settings:      { key: 'id' },
@@ -14,6 +14,7 @@ export const STORES = {
   logSets:       { key: 'id', indexes: { logExerciseId: 'logExerciseId' } },
   bodyweight:    { key: 'id', indexes: { date: 'date' } },
   media:         { key: 'id', indexes: { plannedId: 'plannedId' } }, // foto/video per esercizio (blob)
+  tombstones:    { key: 'id' }, // cancellazioni, per il merge tra dispositivi
 };
 
 let _db = null;
@@ -58,15 +59,28 @@ export const getAll = (store) => open().then(() => wrap(tx(store, 'readonly').ge
 export const getAllByIndex = (store, index, key) =>
   open().then(() => wrap(tx(store, 'readonly').index(index).getAll(key)));
 export const get = (store, id) => open().then(() => wrap(tx(store, 'readonly').get(id)));
-export const put = (store, val) => open().then(() => wrap(tx(store, 'readwrite').put(val)).then(() => val));
-export const del = (store, id) => open().then(() => wrap(tx(store, 'readwrite').delete(id)));
+// Gli store sincronizzati marcano ogni scrittura con `updatedAt` (merge per record)
+// e ogni cancellazione con una tombstone. `raw` salta il marcaggio (import/merge).
+const SYNCED = new Set(['settings', 'programs', 'days', 'planned', 'sessions', 'logExercises', 'logSets', 'bodyweight']);
+const stamp = (store, val) => { if (SYNCED.has(store)) val.updatedAt = Date.now(); return val; };
+
+export const put = (store, val, raw) => open().then(() =>
+  wrap(tx(store, 'readwrite').put(raw ? val : stamp(store, val))).then(() => val));
+export const del = (store, id) => open().then(async () => {
+  await wrap(tx(store, 'readwrite').delete(id));
+  if (SYNCED.has(store)) {
+    await wrap(tx('tombstones', 'readwrite').put({ id: `${store}:${id}`, store, docId: id, at: Date.now() }));
+  }
+});
+// Cancella senza creare tombstone (usato dal merge).
+export const rawDel = (store, id) => open().then(() => wrap(tx(store, 'readwrite').delete(id)));
 export const clear = (store) => open().then(() => wrap(tx(store, 'readwrite').clear()));
 
-export function bulkPut(store, vals) {
+export function bulkPut(store, vals, raw) {
   return open().then(() => new Promise((res, rej) => {
     const t = _db.transaction(store, 'readwrite');
     const os = t.objectStore(store);
-    vals.forEach((v) => os.put(v));
+    vals.forEach((v) => os.put(raw ? v : stamp(store, v)));
     t.oncomplete = () => res(vals);
     t.onerror = () => rej(t.error);
   }));

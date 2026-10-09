@@ -596,7 +596,7 @@ document.addEventListener('click', async (ev) => {
       break;
     }
     case 'cloud-sync-now': {
-      try { await cloud.pushBackup(); render(); toast('Sincronizzato ✓'); }
+      try { if (await cloud.autoSync()) { applyTheme(S.settings.theme || 'system'); applyAccent(S.settings.accent || 'coral'); } if (cloud.syncState.status === 'offline') throw new Error('offline'); render(); toast('Sincronizzato ✓'); }
       catch (e) { toast('Sync non riuscita'); }
       break;
     }
@@ -702,11 +702,12 @@ window.addEventListener('hashchange', render);
     // Non ridisegna durante un esercizio attivo, per non perdere input in corso.
     const refreshFromCloud = async () => {
       if (document.visibilityState !== 'visible' || currentExercise()) return;
-      if (await cloud.autoSync()) {
+      const changed = await cloud.autoSync();
+      if (changed) {
         applyTheme(S.settings.theme || 'system');
         applyAccent(S.settings.accent || 'coral');
-        render();
       }
+      if (changed || location.hash === '#/profile') render();
     };
     cloud.setOnRemoteApplied(() => { if (!currentExercise()) render(); });
     document.addEventListener('visibilitychange', refreshFromCloud);

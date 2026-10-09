@@ -50,28 +50,29 @@ export async function pushBackup() {
   return true;
 }
 
-// Sync automatica "vince l'ultimo dispositivo": se sul cloud c'è una versione
-// più recente dell'ultima sincronizzata qui, la importa; altrimenti carica.
-// Ritorna true se i dati locali sono cambiati (serve un render).
-// "Modifiche locali non ancora caricate": persistito per sopravvivere alla chiusura.
+// Sync automatica con merge per record: scarica il cloud, lo unisce al locale
+// (vince il record più recente, le cancellazioni si propagano) e ricarica sul
+// cloud solo se il locale ha novità. Ritorna true se i dati locali sono cambiati.
 const isDirty = () => { try { return localStorage.getItem('palestra.dirty') === '1'; } catch (e) { return true; } };
 const setDirty = (v) => { try { v ? localStorage.setItem('palestra.dirty', '1') : localStorage.removeItem('palestra.dirty'); } catch (e) {} };
 let _busy = false;
+export const syncState = { status: 'idle' }; // idle | syncing | ok | offline
+
 export async function autoSync() {
   if (!cloudActive() || _busy) return false;
   _busy = true;
+  syncState.status = 'syncing';
   try {
     const out = await call('pull', { code: cloudCode() });
     const remote = out && out.data;
-    if (remote && remote.syncedAt && remote.syncedAt > cloudLastSync()) {
-      const code = cloudCode();
-      await st.importBackup(remote);
-      await st.setCloudMeta({ code, lastSyncAt: remote.syncedAt });
-      return true;
-    }
-    if (!remote || isDirty()) { await pushBackup(); setDirty(false); }
-    return false;
+    let changed = false, ahead = true;
+    if (remote) ({ changed, ahead } = await st.mergeBackup(remote));
+    if (!remote || ahead || isDirty()) { await pushBackup(); setDirty(false); }
+    else await st.setCloudMeta({ lastSyncAt: new Date().toISOString() });
+    syncState.status = 'ok';
+    return changed;
   } catch (e) {
+    syncState.status = 'offline';
     return false; // offline: riproverà al prossimo evento
   } finally {
     _busy = false;
